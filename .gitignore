@@ -1,0 +1,67 @@
+# Local build tools and IDE state
+.gradle/
+.kotlin/
+.idea/
+**/build/
+/local.properties
+*.iml
+.cxx/
+.externalNativeBuild/
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Generated packages, archives and device captures
+/dist/
+/captures/
+/screenshots/
+/recordings/
+*.apk
+*.aab
+*.apks
+*.xapk
+*.dex
+*.hprof
+*.log
+*.log.*
+logcat*
+bugreport*
+
+# Signing material and private configuration (never commit)
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*.mobileprovision
+*.cer
+*.crt
+*.der
+.env
+.env.*
+/secrets/
+/private/
+*keystore*.properties
+key.properties
+*signing*.properties
+/gradle-local.properties
+/credentials.json
+/service-account*.json
+/google-services.json
+/app/google-services.json
+
+# Local assistant context and working drafts; author message stays in app resources
+/.agents/
+/.codex/
+/AGENTS.md
+/PRODUCT.md
+/DESIGN.md
+/docs/OPPO-FLUID-CLOUD.md
+
+# Local diagnostics and temporary exports
+/diagnostics/
+/logs/
+/tmp/
+adbkey*

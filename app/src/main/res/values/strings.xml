@@ -1,0 +1,13 @@
+<resources>
+    <!-- Author message: replace only with text provided by the author. -->
+    <string name="about_message">真的会有人翻到这里啊。\n\n感谢你信任我写的应用。如果你懂些代码，大概会发现，整个应用都是 vibe coding 出来的，是我边学边做的小作品。希望我有限的开发能力，能帮你减少一些意外外放的烦恼。\n\n写这个应用，源于一次意外。前一天晚上看赛车直播，我忘了把媒体音量关掉，结果第二天点开好友发来的抽象哈基米视频，就这么外放了出来，当场社死💦 希望有了这个应用，这样的意外能少一些。\n\n总之，欢迎使用声锁。项目已采用 MIT 许可证开源，你可以自由修改，也欢迎分享自己的版本。如果遇到 bug，请到 GitHub 项目页提交 issue，我会尽量及时排查和修复。如果你也想帮忙改进，欢迎提交 PR。\n\nNing Yu\n2026.10.19</string>
+    <string name="app_name">声锁</string>
+    <string name="accessibility_description">声锁需要接收音量键，在手机媒体外放被锁定时拦截音量加键，并显示确认解锁胶囊。不会读取屏幕内容、代替你点击屏幕或收集输入文字。仅调整媒体音量，不调整通话、铃声和闹钟。可随时在声锁中暂停保护，或在此关闭服务。</string>
+    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:colorAccent">#006970</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>
