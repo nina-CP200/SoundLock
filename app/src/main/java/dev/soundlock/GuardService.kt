@@ -27,7 +27,29 @@ class GuardService : AccessibilityService() {
     private lateinit var capsule: GuardCapsule
     private var problem: String? = null
     private var scheduledDeadline: Long? = null
-    private val consumedKeys = mutableSetOf<Int>()
+    private val keyGate = VolumeKeyGate()
+    private var cachedAudioMode = AudioManager.MODE_NORMAL
+    private val audioModeListener = AudioManager.OnModeChangedListener { mode ->
+        cachedAudioMode = mode
+        if (ready) inspect()
+    }
+    private var keyWorkQueued = false
+    private var keyConfirmationPending = false
+    private var consumedKeyEvents = 0L
+    private var lastKeyCallbackUs = 0L
+    private var maxKeyCallbackUs = 0L
+    private var lastKeyDeliveryDelayMs = 0L
+    private var lastKeyDecision = "none"
+    private val keyWork = Runnable {
+        keyWorkQueued = false
+        if (ready) {
+            val confirm = keyConfirmationPending
+            keyConfirmationPending = false
+            inspect()
+            if (confirm && policy.shouldConfirm && canInteract() &&
+                cachedAudioMode == AudioManager.MODE_NORMAL && !interruptingAudio) capsule.showConfirmation()
+        }
+    }
     private var ready = false
     private var interruptingAudio = false
     private var volumeKeyEvents = 0L
@@ -84,6 +106,8 @@ class GuardService : AccessibilityService() {
         policy.setArmed(GuardState.armed(this))
         GuardState.service = this
         ready = true
+        cachedAudioMode = audio.mode
+        audio.addOnModeChangedListener(mainExecutor, audioModeListener)
         audio.registerAudioPlaybackCallback(playback, handler)
         audio.registerAudioDeviceCallback(devices, handler)
         contentResolver.registerContentObserver(Settings.System.CONTENT_URI, true, observer)
@@ -241,25 +265,35 @@ class GuardService : AccessibilityService() {
     private fun canInteract() = ready && getSystemService(PowerManager::class.java).isInteractive && !getSystemService(KeyguardManager::class.java).isKeyguardLocked
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
-        if (!ready) return false
-        if (event.keyCode != KeyEvent.KEYCODE_VOLUME_UP) return false
+        if (!ready || event.keyCode != KeyEvent.KEYCODE_VOLUME_UP) return false
+        val started = SystemClock.elapsedRealtimeNanos()
         volumeKeyEvents++
-        // Reassert zero on the first press, held repeats and release. Do this
-        // before returning for an already consumed gesture: the ROM may have
-        // changed media volume without a useful Settings/readback update.
-        if (policy.shouldMute) forceMute = true
-        inspect()
-        if (event.action == KeyEvent.ACTION_UP && consumedKeys.remove(event.keyCode)) return true
-        if (event.keyCode in consumedKeys) return true
-        // Let communication and alarm/ringing volume keys keep their normal meaning.
-        if (audio.mode != AudioManager.MODE_NORMAL || interruptingAudio) return false
-        if (!policy.shouldConfirm) return false
-        if (event.action == KeyEvent.ACTION_DOWN) {
-            consumedKeys.add(event.keyCode)
-            if (canInteract() && event.repeatCount == 0) capsule.showConfirmation()
-            return true
+        lastKeyDeliveryDelayMs = (SystemClock.uptimeMillis() - event.eventTime).coerceAtLeast(0)
+        // A due lease must expire before this key is classified, even if the
+        // timer/queued audio inspection has not run since the screen woke up.
+        if (policy.tick(SystemClock.elapsedRealtime())) forceMute = true
+        val action = when (event.action) {
+            KeyEvent.ACTION_DOWN -> VolumeKeyGate.Action.DOWN
+            KeyEvent.ACTION_UP -> VolumeKeyGate.Action.UP
+            else -> VolumeKeyGate.Action.OTHER
         }
-        return false
+        val decision = keyGate.handle(action, event.repeatCount, policy.shouldConfirm,
+            cachedAudioMode != AudioManager.MODE_NORMAL || interruptingAudio)
+        lastKeyDecision = decision.reason
+        if (decision.consume) {
+            consumedKeyEvents++
+            if (decision.mute) forceMute = true
+            keyConfirmationPending = keyConfirmationPending || decision.confirm
+        }
+        // onKeyEvent has a system deadline. Return the consume decision first;
+        // route queries, volume writes and window rendering run in a later task.
+        if (!keyWorkQueued) {
+            keyWorkQueued = true
+            handler.post(keyWork)
+        }
+        lastKeyCallbackUs = (SystemClock.elapsedRealtimeNanos() - started) / 1_000
+        maxKeyCallbackUs = maxOf(maxKeyCallbackUs, lastKeyCallbackUs)
+        return decision.consume
     }
 
     private fun scheduleTimer() {
@@ -316,6 +350,7 @@ class GuardService : AccessibilityService() {
     override fun dump(fd: FileDescriptor, writer: PrintWriter, args: Array<out String>?) {
         writer.println("SoundLock version=${BuildConfig.VERSION_NAME} ready=$ready armed=${policy.armed} unlocked=${policy.unlocked}")
         writer.println("route=${policy.route} playing=${policy.playing} volumeKeys=$volumeKeyEvents problem=$problem")
+        writer.println("keyConsumed=$consumedKeyEvents keyDecision=$lastKeyDecision callbackUs=$lastKeyCallbackUs maxCallbackUs=$maxKeyCallbackUs deliveryDelayMs=$lastKeyDeliveryDelayMs")
         writer.println("lastUnlock=$lastUnlockResult volume=${GuardState.current.volume} lockFeedbacks=$lockFeedbackCount")
         if (ready) writer.println("volumeMode=${volumeControl.mode} sample=${runCatching { volumeControl.read() }.getOrNull()} command=${volumeControl.lastCommand}")
         if (ready) writer.println("capsule=${capsule.status} canInteract=${canInteract()} audioMode=${audio.mode} interruptingAudio=$interruptingAudio")
@@ -332,6 +367,7 @@ class GuardService : AccessibilityService() {
         handler.removeCallbacksAndMessages(null)
         alarm.cancel(alarmIntent)
         capsule.dismiss()
+        audio.removeOnModeChangedListener(audioModeListener)
         audio.unregisterAudioPlaybackCallback(playback)
         audio.unregisterAudioDeviceCallback(devices)
         contentResolver.unregisterContentObserver(observer)
