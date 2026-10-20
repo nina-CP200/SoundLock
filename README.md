@@ -1,69 +1,68 @@
-# 声锁 / SoundLock
+<div align="center">
 
-一个避免 Android 手机意外媒体外放的小工具。默认锁定手机扬声器的媒体音量，恢复外放前需要明确确认。
+# 声锁
 
-目前为开发版本，支持 Android 14 及以上，主要适配 OPPO / ColorOS。其他机型的音量控制、后台运行和输出路由行为仍需验证。
+**让手机在需要安静的地方，保持安静。**
 
-## 功能
+默认锁住媒体外放，避免视频、游戏或社交应用突然从扬声器出声。需要外放时，按音量加键并明确确认。
 
-- 锁定时按音量加键，显示顶部确认提示，点击「确认解锁」后恢复最低一格音量。
-- 平时没有常驻悬浮球，取消或超时后提示自动隐藏。
-- 连续 15 分钟没有活动媒体播放后自动上锁，播放期间暂停计时。
-- 媒体音量调回零、耳机断开或服务重连时撤销外放授权。
-- 外接音频正常使用，切回手机扬声器后重新上锁。
-- 通知和系统快捷设置提供立即上锁入口。
+[下载最新版本](https://github.com/nina-CP200/SoundLock/releases/latest) · [安装说明](docs/INSTALL.md) · [反馈问题](https://github.com/nina-CP200/SoundLock/issues)
 
-首页保留状态和常用操作；权限入口位于「设置」，使用说明、作者寄语和 GitHub 入口位于「关于」。
+[![Android 14+](https://img.shields.io/badge/Android-14%2B-3DDC84?logo=android&logoColor=white)](https://developer.android.com/about/versions/14)
+[![Release](https://img.shields.io/github/v/release/nina-CP200/SoundLock?label=release&color=006970)](https://github.com/nina-CP200/SoundLock/releases/latest)
+[![License](https://img.shields.io/badge/license-MIT-006970)](LICENSE)
 
-## 使用范围
+</div>
 
-声锁使用系统绑定的无障碍服务接收音量键、显示确认提示并调整媒体音量。不读取屏幕内容、不录音、不申请网络权限，不控制通话、铃声或闹钟音量。GitHub 链接由浏览器或其他外部应用打开。
+## 它做什么
 
-**普通应用无法保证绝对零漏音。** 系统面板或其他应用修改音量后，只能检测并尽快归零；服务被停止时无法继续保护。请先在自己的设备上验证，再用于安静场所。
+- **默认锁住外放**：媒体音量归零，解锁前不会直接播放。
+- **一次确认**：按音量加键，顶部出现提示，点击「确认解锁」才恢复最低一格音量。
+- **耳机不受影响**：外接音频正常使用，切回扬声器后自动上锁。
+- **自动回到保护**：15 分钟没有媒体播放、耳机断开或服务重连后自动上锁。
+- **随手可锁**：通知栏和系统快捷设置提供立即上锁入口。
 
-部分 OPlus 设备的后台媒体音量接口受限。声锁会在未启用独立读屏音量时，尝试通过与媒体联动的无障碍音量通道归零。该通道刻度较粗，界面读数仅为估计；锁定时即使读到零，也会定期重新发送归零命令。不要为了启用此适配而关闭已有读屏服务。
+## 开始使用
 
-15 分钟根据播放器活动状态计时，不检测实际声波；静音播放也可能算作播放。未允许精确定时、系统休眠或限制后台活动时，自动上锁可能延迟。顶部提示是应用的无障碍悬浮窗，尚未接入 OPPO 原生流体云。
+1. 从 [Releases](https://github.com/nina-CP200/SoundLock/releases/latest) 下载 APK 并安装。
+2. 打开声锁，按引导开启「声锁 · 音量保护」无障碍服务。
+3. 需要外放时按音量加键，再点击顶部提示中的「确认解锁」。
 
-## 安装与构建
+更完整的权限与验证步骤见 [安装说明](docs/INSTALL.md)。
 
-当前源码版本为 **0.1.11**，首个正式签名版已发布在 [Releases](https://github.com/nina-CP200/SoundLock/releases)。仓库不存放 APK 或签名密钥；正式签名从本机仓库外配置读取，其他环境需自行配置后才能构建可安装的正式包。安装与权限步骤见 [安装说明](docs/INSTALL.md)。
+## 适配与边界
 
-需要 JDK 17 或 21、Android SDK Platform 35。设置 `ANDROID_HOME`，或在本地 `local.properties` 中配置自己的 `sdk.dir`，然后运行：
+支持 Android 14 及以上，主要适配 OPPO / ColorOS，其他机型仍待验证。若手机已安装旧调试版，安装正式版前通常需要先卸载，原有设置会清除。
+
+声锁只处理媒体音量，不控制通话、铃声和闹钟；不读取屏幕内容、不录音、不申请网络权限。
+
+**普通应用无法保证绝对零漏音。** 系统或其他应用修改音量后，声锁只能尽快归零；服务被停止时也无法继续保护。重要场合请先在自己的设备上验证。
+
+## 反馈
+
+遇到问题请到 [Issues](https://github.com/nina-CP200/SoundLock/issues) 反馈，并注明机型、系统版本、声锁版本和复现步骤。提交前请删除日志与截图中的个人信息。
+
+## 开发
+
+<details>
+<summary>构建、测试与签名</summary>
+
+需要 JDK 17 或 21、Android SDK Platform 35：
 
 ```sh
 ./gradlew :app:assembleDebug
+./gradlew :app:testDebugUnitTest :app:lintDebug
 ```
 
-产物位于 `app/build/outputs/apk/debug/app-debug.apk`。首次构建需要下载 Gradle 和依赖；这不影响应用本身无网络权限。
-
-正式包需要签名配置，默认读取 `~/.android/soundlock-signing.properties`，也可用环境变量 `SOUNDLOCK_SIGNING_PROPERTIES` 指向其他路径：
+正式包需要签名配置，默认读取 `~/.android/soundlock-signing.properties`，也可用环境变量 `SOUNDLOCK_SIGNING_PROPERTIES` 指定位置：
 
 ```sh
 ./gradlew :app:assembleRelease
 ```
 
-签名后的产物位于 `app/build/outputs/apk/release/app-release.apk`；未配置签名时该构建产物不可直接安装。
+仓库不存放 APK、签名密钥或密码。欢迎提交 Pull Request。
 
-电脑端检查：
-
-```sh
-./gradlew :app:testDebugUnitTest :app:lintDebug
-```
-
-现有 25 项单元测试覆盖授权、路由、自动上锁、音量映射、归零刷新策略及首次按键拦截。单元测试不能替代实体按键、最低档漏音、息屏保活、读屏共存和耳机切换的真机验证。
-
-## 版本说明
-
-0.1.11 是首个正式签名 Release，功能与 0.1.10 一致，使用独立发布密钥签名。正式版与调试版签名不同，安装前通常需要卸载调试版，原有设置需重新配置。
-
-0.1.10 将按键回调中的音频查询、音量写入和弹窗创建延后处理，回调只根据内存状态立即返回拦截结果，减少系统等待超时后放行首次按键的风险。回调会先检查解锁授权是否到期，无需等待下一轮音频查询。服务诊断仅记录音量加键的处理数量、判断原因及耗时，不记录其他输入内容。此调整仍需实体按键与自动上锁场景验证。
-
-## 反馈与贡献
-
-遇到问题请提交 [issue](https://github.com/nina-CP200/SoundLock/issues)，注明机型、Android / 系统版本、声锁版本和复现步骤。请先删除日志、截图中的设备序列号、局域网地址、账户、通知及其他个人信息。也欢迎提交 [Pull Request](https://github.com/nina-CP200/SoundLock/pulls)。
-
-提交代码时不要包含本地 SDK 路径、构建产物、设备抓取、签名文件或密码配置。作者寄语与署名属于有意公开的应用内容，保留在资源文件中。
+</details>
 
 ## 许可证
 
