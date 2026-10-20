@@ -1,14 +1,24 @@
 # 安装与使用
 
+## 安装正式版
+
+从 [Releases](https://github.com/nina-CP200/SoundLock/releases) 下载最新的 `SoundLock-0.1.11-release.apk`，传到手机安装，或在授权 ADB 后执行：
+
+```sh
+adb install -r SoundLock-0.1.11-release.apk
+```
+
+正式版与调试版签名不同。若手机已安装调试版，通常需要先卸载再安装正式版；卸载会清除应用设置，需重新开启服务和授权。
+
 ## 安装开发包
 
-正式签名与 Release 尚未发布。请先按 [README](../README.md) 构建调试包，再将 `app/build/outputs/apk/debug/app-debug.apk` 传到手机安装，或在授权 ADB 后执行：
+请先按 [README](../README.md) 构建调试包，再将 `app/build/outputs/apk/debug/app-debug.apk` 传到手机安装，或在授权 ADB 后执行：
 
 ```sh
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-调试签名用于开发。后续正式签名若与已安装的调试包不同，通常需要先卸载调试包再安装正式包；卸载会清除应用设置，需重新开启服务和授权。
+调试签名用于开发，不要与正式版混用。
 
 ## 开启保护
 
