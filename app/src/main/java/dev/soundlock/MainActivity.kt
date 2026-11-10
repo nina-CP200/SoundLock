@@ -17,6 +17,7 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -42,7 +43,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        GuardState.current = GuardState.current.copy(armed = GuardState.armed(this))
+        GuardState.current = GuardState.current.copy(armed = GuardState.armed(this), idleMinutes = GuardState.idleMinutes(this))
         setContent { SoundLockTheme { SoundLockScreen(settingsRevision) } }
     }
     override fun onResume() { super.onResume(); settingsRevision++; GuardState.service?.refreshSettings() }
@@ -86,6 +87,7 @@ private fun SoundLockScreen(settingsRevision: Int) {
         page = when (page) { "help", "words" -> "about"; else -> "home" }
     }
     var showDisclosure by remember { mutableStateOf(false) }
+    var showIdleTimeout by remember { mutableStateOf(false) }
     var showUnlock by remember { mutableStateOf(false) }
     var unlockError by remember { mutableStateOf<String?>(null) }
     var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
@@ -161,6 +163,8 @@ private fun SoundLockScreen(settingsRevision: Int) {
                         "settings" -> {
                             SettingRow("音量保护服务", if (state.connected) "已开启" else "未开启", "管理") { showDisclosure = true }
                             HorizontalDivider(color = colors.outlineVariant)
+                            SettingRow("自动上锁时长", "${state.idleMinutes} 分钟", "选择") { showIdleTimeout = true }
+                            HorizontalDivider(color = colors.outlineVariant)
                             SettingRow("状态通知", if (notificationsAllowed) "已允许" else "未允许", "管理") { activity.notifications() }
                             HorizontalDivider(color = colors.outlineVariant)
                             SettingRow("自动上锁计时", if (exactAllowed) "精确定时已允许" else "精确定时未允许", "设置") { activity.openSettings(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, true) }
@@ -180,7 +184,7 @@ private fun SoundLockScreen(settingsRevision: Int) {
                         }
                         "help" -> {
                             HelpSection("锁定与解锁", "锁定后，按音量加键会弹出顶部确认提示，点击「确认解锁」后才能外放。也可以在首页解锁。解锁恢复低音量，不恢复之前的音量。取消或超时后提示会隐藏，平时没有悬浮球。")
-                            HelpSection("自动上锁", "连续 15 分钟没有媒体播放后自动上锁；播放期间不计时。媒体音量调回零、耳机断开或保护服务重连时，也会重新上锁。可在系统快捷设置中添加「声锁」，随时上锁。")
+                            HelpSection("自动上锁", "连续 ${state.idleMinutes} 分钟没有媒体播放后自动上锁；播放期间不计时。媒体音量调回零、耳机断开或保护服务重连时，也会重新上锁。可在「设置 → 自动上锁时长」改为 5 / 15 / 30 / 60 分钟；系统快捷设置里也可以添加「声锁」磁贴，随时上锁。")
                             HelpSection("耳机与通话", "外接设备正常使用，切回手机扬声器后重新上锁。声锁只保护媒体外放，不调整通话、铃声和闹钟音量。")
                             HelpSection("权限与后台", "无障碍服务用于接收音量键和显示确认提示，不读取屏幕内容。状态通知提供上锁入口。精确定时用于息屏后的自动上锁；未允许时可能延迟。ColorOS 中还需留意应用的后台活动和自启动设置。")
                             HelpSection("音量适配", "声锁会自动选择音量控制方式。部分 OPPO 设备的后台媒体音量接口受限，会通过与媒体联动的无障碍音量通道归零。若已有独立读屏音量，则使用标准媒体接口。兼容通道的音量读数只是估计，最低档不代表已确认静音。")
@@ -211,7 +215,7 @@ private fun SoundLockScreen(settingsRevision: Int) {
     )
     if (showUnlock) AlertDialog(
         onDismissRequest = { showUnlock = false }, title = { Text("解锁外放？") },
-        text = { Text(unlockError ?: "恢复低音量，停止播放 15 分钟后自动上锁。") },
+        text = { Text(unlockError ?: "恢复低音量，停止播放 ${state.idleMinutes} 分钟后自动上锁。") },
         confirmButton = { TextButton(onClick = {
             val service = GuardState.service
             if (service?.confirmUnlock() == true) { showUnlock = false; service.showUnlockFeedback() }
@@ -219,7 +223,26 @@ private fun SoundLockScreen(settingsRevision: Int) {
         }) { Text("确认解锁") } },
         dismissButton = { TextButton(onClick = { showUnlock = false }) { Text("保持静音") } }
     )
+    if (showIdleTimeout) AlertDialog(
+        onDismissRequest = { showIdleTimeout = false }, title = { Text("自动上锁时长") },
+        text = {
+            val choose: (Int) -> Unit = { GuardState.setIdleMinutes(activity, it); showIdleTimeout = false }
+            Column {
+                IDLE_MINUTES.forEach { minutes ->
+                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { choose(minutes) },
+                        verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = minutes == state.idleMinutes, onClick = { choose(minutes) })
+                        Text("$minutes 分钟", style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = { showIdleTimeout = false }) { Text("取消") } }
+    )
 }
+
+private val IDLE_MINUTES = listOf(5, 15, 30, 60)
 
 @Composable
 private fun PageRow(title: String, onClick: () -> Unit) {

@@ -1,7 +1,7 @@
 package dev.soundlock
 
 /** Pure policy; time is always elapsedRealtime, never calendar time. */
-class LockPolicy(private val idleTimeoutMs: Long = 15 * 60_000L) {
+class LockPolicy(var idleTimeoutMs: Long = 15 * 60_000L) {
     enum class Route { SPEAKER, EXTERNAL, UNKNOWN }
     var armed = true; private set
     var unlocked = false; private set

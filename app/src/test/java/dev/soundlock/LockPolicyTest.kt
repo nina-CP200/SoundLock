@@ -130,4 +130,29 @@ class LockPolicyTest {
         assertTrue(p.shouldMute)
         assertNull(p.deadline)
     }
+
+    @Test fun shorteningTheTimeoutRelocksAtTheNewDeadline() {
+        val p = speaker()
+        assertTrue(p.unlock(0))
+        assertEquals(900_000L, p.deadline)
+        p.idleTimeoutMs = 5 * 60_000L
+        assertEquals(300_000L, p.deadline)
+        assertFalse(p.tick(299_999))
+        assertTrue(p.tick(300_000))
+        assertTrue(p.shouldMute)
+    }
+    @Test fun lengtheningTheTimeoutExtendsTheCurrentLease() {
+        val p = speaker()
+        assertTrue(p.unlock(0))
+        p.idleTimeoutMs = 60 * 60_000L
+        assertEquals(3_600_000L, p.deadline)
+        assertFalse(p.tick(900_000))
+        assertTrue(p.unlocked)
+    }
+    @Test fun changingTheTimeoutCannotUnlockOnItsOwn() {
+        val p = speaker()
+        p.idleTimeoutMs = 60 * 60_000L
+        assertTrue(p.shouldMute)
+        assertNull(p.deadline)
+    }
 }

@@ -108,6 +108,7 @@ class GuardService : AccessibilityService() {
         alarm = getSystemService(AlarmManager::class.java)
         volumeControl = MediaVolumeControl(this, audio).apply { refreshMode() }
         capsule = GuardCapsule(this, ::confirmUnlock, { unlockSuccessMessage }, { unlockFailureMessage })
+        policy.idleTimeoutMs = GuardState.idleMinutes(this) * 60_000L
         policy.setArmed(GuardState.armed(this))
         GuardState.service = this
         ready = true
@@ -199,6 +200,10 @@ class GuardService : AccessibilityService() {
         policy.setArmed(enabled)
         forceMute = enabled
         capsule.dismiss()
+        inspect()
+    }
+    fun setIdleTimeout(minutes: Int) {
+        policy.idleTimeoutMs = minutes.coerceIn(1, 180) * 60_000L
         inspect()
     }
     fun lockNow() {
@@ -321,7 +326,8 @@ class GuardService : AccessibilityService() {
         val volumeSample = runCatching { volumeControl.read() }.getOrNull()
         val next = GuardSnapshot(true, policy.armed, policy.unlocked, policy.route, policy.playing, policy.deadline,
             volumeSample?.volume ?: 0,
-            volumeSample?.maximum ?: 15, problem, volumeControl.mode, volumeSample?.estimated ?: false)
+            volumeSample?.maximum ?: 15, problem, volumeControl.mode, volumeSample?.estimated ?: false,
+            (policy.idleTimeoutMs / 60_000L).toInt())
         val old = GuardState.current
         GuardState.current = next
         // Edge-triggered: routine polling must never renew this transient message.
@@ -348,7 +354,7 @@ class GuardService : AccessibilityService() {
         val confirm = PendingIntent.getBroadcast(this, 4, Intent(this, LockReceiver::class.java).setAction(ACTION_CONFIRM), PendingIntent.FLAG_IMMUTABLE)
         val title = when { state.problem != null -> "保护需要检查"; state.route == LockPolicy.Route.EXTERNAL -> "外接设备使用中"; state.unlocked -> "外放已解锁"; else -> "外放已锁定" }
         val notification = Notification.Builder(this, "protection").setSmallIcon(R.drawable.ic_lock).setContentTitle(title)
-            .setContentText(if (state.unlocked) "停止播放 15 分钟后自动上锁" else "点击后确认解锁").setContentIntent(if (state.route == LockPolicy.Route.SPEAKER && !state.unlocked) confirm else open).setOngoing(true).setOnlyAlertOnce(true)
+            .setContentText(if (state.unlocked) "停止播放 ${state.idleMinutes} 分钟后自动上锁" else "点击后确认解锁").setContentIntent(if (state.route == LockPolicy.Route.SPEAKER && !state.unlocked) confirm else open).setOngoing(true).setOnlyAlertOnce(true)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
         if (state.route == LockPolicy.Route.SPEAKER && !state.unlocked) notification.addAction(Notification.Action.Builder(null, "确认解锁", confirm).build())
         notification.addAction(Notification.Action.Builder(null, "立即上锁", lock).build())
@@ -381,7 +387,7 @@ class GuardService : AccessibilityService() {
         unregisterReceiver(receiver)
         getSystemService(NotificationManager::class.java).cancel(2)
         GuardState.service = null
-        GuardState.current = GuardSnapshot(armed = GuardState.armed(this))
+        GuardState.current = GuardSnapshot(armed = GuardState.armed(this), idleMinutes = GuardState.idleMinutes(this))
     }
     companion object {
         const val ACTION_LOCK = "dev.soundlock.LOCK"

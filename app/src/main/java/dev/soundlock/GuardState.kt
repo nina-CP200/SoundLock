@@ -16,13 +16,20 @@ data class GuardSnapshot(
     val maxVolume: Int = 15,
     val problem: String? = null,
     val volumeMode: String = "标准媒体音量",
-    val volumeEstimated: Boolean = false
+    val volumeEstimated: Boolean = false,
+    val idleMinutes: Int = 15
 )
 object GuardState {
     var current by mutableStateOf(GuardSnapshot()); internal set
     var service: GuardService? = null; internal set
     fun prefs(context: Context) = context.getSharedPreferences("guard", Context.MODE_PRIVATE)
     fun armed(context: Context) = prefs(context).getBoolean("armed", true)
+    fun setIdleMinutes(context: Context, minutes: Int) {
+        prefs(context).edit().putInt("idleMinutes", minutes).apply()
+        service?.setIdleTimeout(minutes)
+        if (service == null) current = current.copy(idleMinutes = minutes)
+    }
+    fun idleMinutes(context: Context) = prefs(context).getInt("idleMinutes", 15)
     fun setArmed(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean("armed", enabled).apply()
         service?.setProtection(enabled)
