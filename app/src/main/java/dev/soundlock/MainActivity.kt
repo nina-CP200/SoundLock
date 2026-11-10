@@ -5,6 +5,9 @@ import android.app.AlarmManager
 import android.app.LocaleManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.LocaleList
@@ -19,6 +22,7 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
@@ -34,12 +38,16 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     private var settingsRevision by mutableIntStateOf(0)
@@ -69,6 +77,19 @@ class MainActivity : ComponentActivity() {
         val locales = if (tag == null) LocaleList.getEmptyLocaleList() else LocaleList.forLanguageTags(tag)
         getSystemService(LocaleManager::class.java).applicationLocales = locales
     }
+    fun launchableApps(): List<AppEntry> {
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        return packageManager.queryIntentActivities(intent, 0)
+            .asSequence()
+            .filter { it.activityInfo.packageName != packageName }
+            .distinctBy { it.activityInfo.packageName }
+            .map { info ->
+                AppEntry(info.activityInfo.packageName, info.loadLabel(packageManager).toString(),
+                    info.loadIcon(packageManager).toImageBitmap())
+            }
+            .sortedBy { it.label.lowercase() }
+            .toList()
+    }
 }
 
 @Composable
@@ -91,11 +112,12 @@ private fun SoundLockScreen(settingsRevision: Int) {
     val state = GuardState.current
     var page by rememberSaveable { mutableStateOf("home") }
     BackHandler(enabled = page != "home") {
-        page = when (page) { "help", "words" -> "about"; else -> "home" }
+        page = when (page) { "help", "words" -> "about"; "apps" -> "settings"; else -> "home" }
     }
     var showDisclosure by remember { mutableStateOf(false) }
     var showIdleTimeout by remember { mutableStateOf(false) }
     var showLanguage by remember { mutableStateOf(false) }
+    var allowedRevision by remember { mutableIntStateOf(0) }
     var showUnlock by remember { mutableStateOf(false) }
     var unlockError by remember { mutableStateOf<String?>(null) }
     var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
@@ -113,6 +135,9 @@ private fun SoundLockScreen(settingsRevision: Int) {
         languageTag.startsWith("zh") -> R.string.language_zh_hans
         else -> R.string.language_en
     })
+    val allowedPackages = remember(settingsRevision, allowedRevision) { GuardState.allowedPackages(activity) }
+    var apps by remember(page) { mutableStateOf(emptyList<AppEntry>()) }
+    LaunchedEffect(page) { if (page == "apps") apps = withContext(Dispatchers.IO) { activity.launchableApps() } }
     val colors = MaterialTheme.colorScheme
     val headline = stringResource(when {
         !state.connected -> R.string.status_disconnected_title
@@ -145,12 +170,12 @@ private fun SoundLockScreen(settingsRevision: Int) {
                     .verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
                     Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 28.dp), verticalAlignment = Alignment.CenterVertically) {
                         if (page != "home") {
-                            TextButton(onClick = { page = when (page) { "help", "words" -> "about"; else -> "home" } }) { Text(stringResource(R.string.action_back)) }
+                            TextButton(onClick = { page = when (page) { "help", "words" -> "about"; "apps" -> "settings"; else -> "home" } }) { Text(stringResource(R.string.action_back)) }
                             Spacer(Modifier.width(8.dp))
                         }
                         Text(stringResource(when (page) {
                             "settings" -> R.string.page_settings; "about" -> R.string.page_about; "help" -> R.string.page_help
-                            "words" -> R.string.page_words; else -> R.string.app_name
+                            "words" -> R.string.page_words; "apps" -> R.string.setting_app_rules; else -> R.string.app_name
                         }), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                     }
                     when (page) {
@@ -184,6 +209,8 @@ private fun SoundLockScreen(settingsRevision: Int) {
                             SettingRow(stringResource(R.string.setting_service), stringResource(if (state.connected) R.string.value_on else R.string.value_off), stringResource(R.string.action_manage)) { showDisclosure = true }
                             HorizontalDivider(color = colors.outlineVariant)
                             SettingRow(stringResource(R.string.setting_idle_timeout), stringResource(R.string.minutes_value, state.idleMinutes), stringResource(R.string.action_choose)) { showIdleTimeout = true }
+                            HorizontalDivider(color = colors.outlineVariant)
+                            SettingRow(stringResource(R.string.setting_app_rules), stringResource(R.string.app_rules_count, allowedPackages.size), stringResource(R.string.action_choose)) { page = "apps" }
                             HorizontalDivider(color = colors.outlineVariant)
                             SettingRow(stringResource(R.string.setting_language), languageLabel, stringResource(R.string.action_choose)) { showLanguage = true }
                             HorizontalDivider(color = colors.outlineVariant)
@@ -231,6 +258,19 @@ private fun SoundLockScreen(settingsRevision: Int) {
                         }
                         "words" -> {
                             Text(stringResource(R.string.about_message), style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
+                        }
+                        "apps" -> {
+                            Text(stringResource(R.string.app_rules_hint), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                            Spacer(Modifier.height(8.dp))
+                            if (apps.isEmpty()) {
+                                Text(stringResource(R.string.app_rules_empty), style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
+                            }
+                            apps.forEach { entry ->
+                                AppRuleRow(entry, entry.packageName in allowedPackages) { checked ->
+                                    GuardState.setAllowedPackage(activity, entry.packageName, checked)
+                                    allowedRevision++
+                                }
+                            }
                         }
                     }
                 }
@@ -351,3 +391,25 @@ private fun LockSymbol(open: Boolean, modifier: Modifier) {
         drawLine(color, Offset(32f * u, 41f * u), Offset(32f * u, 49f * u), 3f * u)
     }
 }
+
+data class AppEntry(val packageName: String, val label: String, val icon: ImageBitmap?)
+
+@Composable
+private fun AppRuleRow(entry: AppEntry, allowed: Boolean, onToggle: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 64.dp), verticalAlignment = Alignment.CenterVertically) {
+        entry.icon?.let { Image(bitmap = it, contentDescription = null, modifier = Modifier.size(40.dp)) }
+        Spacer(Modifier.width(16.dp))
+        Text(entry.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, maxLines = 1)
+        Switch(checked = allowed, onCheckedChange = onToggle)
+    }
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+}
+
+private fun Drawable.toImageBitmap(): ImageBitmap? = runCatching {
+    val width = intrinsicWidth.takeIf { it > 0 } ?: 96
+    val height = intrinsicHeight.takeIf { it > 0 } ?: 96
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    setBounds(0, 0, width, height)
+    draw(Canvas(bitmap))
+    bitmap.asImageBitmap()
+}.getOrNull()

@@ -37,6 +37,8 @@
     <string name="status_unlocked_idle_detail">播放结束后开始自动上锁计时。</string>
     <string name="status_locked_title">外放已锁定</string>
     <string name="status_locked_detail">按音量加键，确认后解锁。</string>
+    <string name="status_allowed_title">允许外放</string>
+    <string name="status_allowed_detail">该应用在白名单中；停止播放后自动上锁。</string>
     <string name="row_speaker_protection">外放保护</string>
 
     <string name="setting_service">音量保护服务</string>
@@ -53,6 +55,10 @@
     <string name="setting_background">后台运行</string>
     <string name="setting_background_detail">应用系统设置</string>
     <string name="setting_language">语言</string>
+    <string name="setting_app_rules">应用规则</string>
+    <string name="app_rules_count">%1$d 个已允许</string>
+    <string name="app_rules_hint">已允许的应用可以直接外放，不再需要确认。声锁不再调整它们的音量，音量由你自己控制。</string>
+    <string name="app_rules_empty">没有可显示的应用</string>
     <string name="language_system">跟随系统</string>
     <string name="language_zh_hans">简体中文 🇸🇬</string>
     <string name="language_zh_hant">繁體中文 🇲🇴</string>
@@ -100,6 +106,7 @@
     <string name="guard_problem_mute_pending">正在将媒体音量归零；尚未确认静音</string>
     <string name="guard_problem_mute_denied">系统拒绝调整媒体音量，保护未完全生效</string>
     <string name="capsule_restore_one_notch">恢复低音量</string>
+    <string name="capsule_app_allowed">%1$s 已放行，音量由你控制</string>
     <string name="capsule_window_title">声锁确认</string>
     <string name="unlock_ok_silent">已解锁，可调高音量</string>
     <string name="unlock_failed_screen_locked">请先解锁手机屏幕，再按音量加键重试</string>

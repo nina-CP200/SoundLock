@@ -39,8 +39,9 @@
     <string name="status_countdown">Auto-lock in %1$s</string>
     <string name="countdown_value">%1$02d:%2$02d</string>
     <string name="status_unlocked_idle_detail">The auto-lock timer starts once playback stops.</string>
+    <string name="status_allowed_title">Speaker allowed</string>
+    <string name="status_allowed_detail">This app is allowed; it locks again when playback stops.</string>
     <string name="status_locked_title">Speaker locked</string>
-    <string name="status_locked_detail">Press volume up and confirm to unlock.</string>
     <string name="row_speaker_protection">Speaker protection</string>
 
     <!-- Settings -->
@@ -55,6 +56,11 @@
     <string name="setting_exact_alarm">Auto-lock timer</string>
     <string name="setting_exact_allowed">Exact alarms allowed</string>
     <string name="setting_exact_not_allowed">Exact alarms not allowed</string>
+    <string name="status_locked_detail">Press volume up and confirm to unlock.</string>
+    <string name="setting_app_rules">App rules</string>
+    <string name="app_rules_count">%1$d allowed</string>
+    <string name="app_rules_hint">Allowed apps play through the speaker without confirming. SoundLock stops adjusting their volume; volume stays up to you.</string>
+    <string name="app_rules_empty">No apps to list</string>
     <string name="setting_background">Background activity</string>
     <string name="setting_background_detail">System app settings</string>
     <string name="setting_language">Language</string>
@@ -109,6 +115,7 @@
     <string name="guard_problem_mute_pending">Muting media; silence is not confirmed yet.</string>
     <string name="guard_problem_mute_denied">The system refused the volume change. Protection is not fully in effect.</string>
     <string name="capsule_restore_one_notch">Restores a low volume</string>
+    <string name="capsule_app_allowed">%1$s is allowed — volume is up to you</string>
     <string name="capsule_window_title">SoundLock unlock</string>
     <string name="unlock_ok_silent">Unlocked — raise the volume yourself</string>
     <string name="unlock_failed_screen_locked">Unlock the phone screen first, then press volume up again.</string>

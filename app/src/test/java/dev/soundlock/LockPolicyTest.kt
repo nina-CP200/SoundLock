@@ -155,4 +155,28 @@ class LockPolicyTest {
         assertTrue(p.shouldMute)
         assertNull(p.deadline)
     }
+
+    @Test fun allowedAppSuppressesMuteAndConfirmation() {
+        val p = speaker()
+        p.updatePlayback(true, 100, allowed = true)
+        assertFalse(p.shouldMute)
+        assertFalse(p.shouldConfirm)
+        assertTrue(p.allowed)
+    }
+    @Test fun stoppingTheAllowedAppRequiresConfirmationAgain() {
+        val p = speaker()
+        p.updatePlayback(true, 100, allowed = true)
+        p.updatePlayback(false, 200)
+        assertTrue(p.shouldMute)
+        assertTrue(p.shouldConfirm)
+        assertFalse(p.unlocked)
+    }
+    @Test fun allowedDoesNotTouchAManualLease() {
+        val p = speaker()
+        assertTrue(p.unlock(0))
+        p.updatePlayback(true, 100, allowed = true)
+        p.updatePlayback(false, 200)
+        assertTrue(p.unlocked)
+        assertFalse(p.shouldConfirm)
+    }
 }

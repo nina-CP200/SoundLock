@@ -27,6 +27,8 @@ parent: soundlock-architecture
 
 权限只有三个：`MODIFY_AUDIO_SETTINGS`（写媒体音量）、`POST_NOTIFICATIONS`（常驻状态通知）、`SCHEDULE_EXACT_ALARM`（自动上锁定时）。没有 `INTERNET`、没有麦克风、没有 `SYSTEM_ALERT_WINDOW`。
 
+`<queries>` 里声明 `MAIN`/`LAUNCHER` 意图，用于列出可启动应用供白名单选择；这是受限权限 `QUERY_ALL_PACKAGES` 的替代，不是可以随手删掉的声明（删了列表直接空）。
+
 ## 资源与文案
 
 - 三套文案：`values/` 是英文（也是默认回退）、`values-zh/` 简体、`values-b+zh+Hant/` 繁體。繁體必须用比 `values-zh` 更具体的限定符，否则繁體设备会落到简体。非中英文设备看到英文。

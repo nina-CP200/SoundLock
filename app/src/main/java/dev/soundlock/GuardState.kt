@@ -17,7 +17,8 @@ data class GuardSnapshot(
     val problem: String? = null,
     val volumeMode: VolumeMode = VolumeMode.STANDARD,
     val volumeEstimated: Boolean = false,
-    val idleMinutes: Int = 15
+    val idleMinutes: Int = 15,
+    val allowed: Boolean = false
 )
 object GuardState {
     var current by mutableStateOf(GuardSnapshot()); internal set
@@ -30,6 +31,15 @@ object GuardState {
         if (service == null) current = current.copy(idleMinutes = minutes)
     }
     fun idleMinutes(context: Context) = prefs(context).getInt("idleMinutes", 15)
+    fun allowedPackages(context: Context) =
+        prefs(context).getStringSet("allowedPackages", emptySet())?.toSet() ?: emptySet()
+    fun setAllowedPackage(context: Context, packageName: String, allowed: Boolean) {
+        val next = allowedPackages(context).toMutableSet().apply {
+            if (allowed) add(packageName) else remove(packageName)
+        }
+        prefs(context).edit().putStringSet("allowedPackages", next).apply()
+        service?.refreshAllowedPackages()
+    }
     fun setArmed(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean("armed", enabled).apply()
         service?.setProtection(enabled)

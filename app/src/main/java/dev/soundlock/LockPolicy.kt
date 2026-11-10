@@ -7,11 +7,12 @@ class LockPolicy(var idleTimeoutMs: Long = 15 * 60_000L) {
     var unlocked = false; private set
     var route = Route.UNKNOWN; private set
     var playing = false; private set
+    var allowed = false; private set
     var idleSince: Long? = null; private set
     private var positiveVolumeObserved = false
 
-    val shouldMute get() = armed && !unlocked && route != Route.EXTERNAL
-    val shouldConfirm get() = armed && !unlocked && route != Route.EXTERNAL
+    val shouldMute get() = armed && !unlocked && route != Route.EXTERNAL && !allowed
+    val shouldConfirm get() = armed && !unlocked && route != Route.EXTERNAL && !allowed
     val deadline get() = if (armed && unlocked && !playing) idleSince?.plus(idleTimeoutMs) else null
 
     fun setArmed(value: Boolean) { armed = value; lock() }
@@ -28,11 +29,12 @@ class LockPolicy(var idleTimeoutMs: Long = 15 * 60_000L) {
         if (route != next) lock()
         route = next
     }
-    fun updatePlayback(active: Boolean, now: Long): Boolean {
+    fun updatePlayback(active: Boolean, now: Long, allowed: Boolean = false): Boolean {
         val expired = tick(now)
         if (active) idleSince = null
         else if (unlocked && (playing || idleSince == null)) idleSince = now
         playing = active
+        this.allowed = allowed
         return expired
     }
     fun tick(now: Long): Boolean {

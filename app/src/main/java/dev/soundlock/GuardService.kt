@@ -18,6 +18,10 @@ import android.view.accessibility.AccessibilityEvent
 
 class GuardService : AccessibilityService() {
     private val policy = LockPolicy()
+    private var allowedPackages: Set<String> = emptySet()
+    private var foregroundPackage: String? = null
+    private var announcedAllowed: String? = null
+    private var whitelistOverride = false
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var audio: AudioManager
     private lateinit var alarm: AlarmManager
@@ -110,6 +114,7 @@ class GuardService : AccessibilityService() {
         volumeControl = MediaVolumeControl(this, audio).apply { refreshMode() }
         capsule = GuardCapsule(this, ::confirmUnlock, { unlockSuccessMessage }, { unlockFailureMessage })
         policy.idleTimeoutMs = GuardState.idleMinutes(this) * 60_000L
+        allowedPackages = GuardState.allowedPackages(this)
         policy.setArmed(GuardState.armed(this))
         GuardState.service = this
         ready = true
@@ -152,12 +157,11 @@ class GuardService : AccessibilityService() {
             policy.updateRoute(route())
             if (previousRoute != policy.route) capsule.dismiss()
             val configs = audio.activePlaybackConfigurations
-            interruptingAudio = configs.any { it.audioAttributes.usage in setOf(
-                AudioAttributes.USAGE_ALARM, AudioAttributes.USAGE_NOTIFICATION_RINGTONE,
-                AudioAttributes.USAGE_VOICE_COMMUNICATION, AudioAttributes.USAGE_VOICE_COMMUNICATION_SIGNALLING) }
-            val active = configs.any { it.audioAttributes.usage in setOf(
-                AudioAttributes.USAGE_MEDIA, AudioAttributes.USAGE_GAME, AudioAttributes.USAGE_UNKNOWN) } || audio.isMusicActive
-            val expired = policy.updatePlayback(active, now)
+            interruptingAudio = configs.any { it.audioAttributes.usage in INTERRUPTING_USAGES }
+            val allowedPackage = allowedPlayingPackage(configs)
+            if (allowedPackage == null) whitelistOverride = false
+            val active = configs.any { it.audioAttributes.usage in MEDIA_USAGES } || audio.isMusicActive
+            val expired = policy.updatePlayback(active, now, allowedPackage != null && !whitelistOverride)
             volumeControl.refreshMode()
             val volume = volumeControl.read().volume
             policy.observeVolume(volume)
@@ -169,6 +173,7 @@ class GuardService : AccessibilityService() {
             reconcileCapsule()
             scheduleTimer()
             publish()
+            announceAllowedApp(allowedPackage)
         } catch (e: RuntimeException) {
             policy.updateRoute(LockPolicy.Route.UNKNOWN)
             policy.lock()
@@ -207,10 +212,15 @@ class GuardService : AccessibilityService() {
         policy.idleTimeoutMs = minutes.coerceIn(1, 180) * 60_000L
         inspect()
     }
+    fun refreshAllowedPackages() {
+        allowedPackages = GuardState.allowedPackages(this)
+        inspect()
+    }
     fun lockNow() {
         if (!ready) return
         val wasUnlocked = policy.unlocked
         forceMute = true
+        whitelistOverride = true
         policy.lock()
         capsule.dismiss()
         inspect()
@@ -242,6 +252,7 @@ class GuardService : AccessibilityService() {
     }
     fun confirmUnlock(): Boolean {
         inspect()
+        whitelistOverride = false
         lastUnlockError = when {
             !canInteract() -> getString(R.string.unlock_failed_screen_locked)
             !policy.armed -> getString(R.string.unlock_failed_paused)
@@ -276,6 +287,22 @@ class GuardService : AccessibilityService() {
     val unlockSuccessMessage get() = if (volumeControl.read().volume > 0) getString(R.string.status_unlocked_title) else getString(R.string.unlock_ok_silent)
     fun showUnlockFeedback() { if (canInteract()) capsule.showMessage(unlockSuccessMessage, true) }
     private fun canInteract() = ready && getSystemService(PowerManager::class.java).isInteractive && !getSystemService(KeyguardManager::class.java).isKeyguardLocked
+
+    private fun allowedPlayingPackage(configs: List<AudioPlaybackConfiguration>): String? {
+        if (allowedPackages.isEmpty()) return null
+        if (configs.none { it.audioAttributes.usage in MEDIA_USAGES }) return null
+        return foregroundPackage?.takeIf { it in allowedPackages }
+    }
+    private fun appLabel(packageName: String): String = runCatching {
+        packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString()
+    }.getOrDefault(packageName)
+    private fun announceAllowedApp(packageName: String?) {
+        if (packageName == announcedAllowed) return
+        announcedAllowed = packageName
+        if (packageName == null) return
+        if (canInteract() && audio.mode == AudioManager.MODE_NORMAL && !interruptingAudio)
+            capsule.showMessage(getString(R.string.capsule_app_allowed, appLabel(packageName)), true)
+    }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (!ready || event.keyCode != KeyEvent.KEYCODE_VOLUME_UP) return false
@@ -328,7 +355,7 @@ class GuardService : AccessibilityService() {
         val next = GuardSnapshot(true, policy.armed, policy.unlocked, policy.route, policy.playing, policy.deadline,
             volumeSample?.volume ?: 0,
             volumeSample?.maximum ?: 15, problem, volumeControl.mode, volumeSample?.estimated ?: false,
-            (policy.idleTimeoutMs / 60_000L).toInt())
+            (policy.idleTimeoutMs / 60_000L).toInt(), policy.allowed)
         val old = GuardState.current
         GuardState.current = next
         // Edge-triggered: routine polling must never renew this transient message.
@@ -356,6 +383,7 @@ class GuardService : AccessibilityService() {
         val title = when {
             state.problem != null -> getString(R.string.status_problem_title)
             state.route == LockPolicy.Route.EXTERNAL -> getString(R.string.status_external_title)
+            state.allowed -> getString(R.string.status_allowed_title)
             state.unlocked -> getString(R.string.status_unlocked_title)
             else -> getString(R.string.status_locked_title)
         }
@@ -370,12 +398,21 @@ class GuardService : AccessibilityService() {
     override fun dump(fd: FileDescriptor, writer: PrintWriter, args: Array<out String>?) {
         writer.println("SoundLock version=${BuildConfig.VERSION_NAME} ready=$ready armed=${policy.armed} unlocked=${policy.unlocked}")
         writer.println("route=${policy.route} playing=${policy.playing} volumeKeys=$volumeKeyEvents problem=$problem")
+        writer.println("allowed=${policy.allowed} allowedPackages=$allowedPackages foreground=$foregroundPackage override=$whitelistOverride")
         writer.println("keyConsumed=$consumedKeyEvents keyDecision=$lastKeyDecision callbackUs=$lastKeyCallbackUs maxCallbackUs=$maxKeyCallbackUs deliveryDelayMs=$lastKeyDeliveryDelayMs")
         writer.println("lastUnlock=$lastUnlockResult volume=${GuardState.current.volume} lockFeedbacks=$lockFeedbackCount")
         if (ready) writer.println("volumeMode=${volumeControl.mode} sample=${runCatching { volumeControl.read() }.getOrNull()} command=${volumeControl.lastCommand}")
         if (ready) writer.println("capsule=${capsule.status} canInteract=${canInteract()} audioMode=${audio.mode} interruptingAudio=$interruptingAudio")
     }
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        val changed = event.packageName?.toString() ?: return
+        // System UI windows (shade, keyguard, volume panel) are not app switches.
+        if (changed == packageName || changed == "com.android.systemui") return
+        if (changed == foregroundPackage) return
+        foregroundPackage = changed
+        handler.post { if (ready) inspect() }
+    }
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         // A locale change does not alter the snapshot, so the edge-triggered publish would keep
@@ -405,6 +442,11 @@ class GuardService : AccessibilityService() {
         GuardState.current = GuardSnapshot(armed = GuardState.armed(this), idleMinutes = GuardState.idleMinutes(this))
     }
     companion object {
+        private val MEDIA_USAGES = setOf(
+            AudioAttributes.USAGE_MEDIA, AudioAttributes.USAGE_GAME, AudioAttributes.USAGE_UNKNOWN)
+        private val INTERRUPTING_USAGES = setOf(
+            AudioAttributes.USAGE_ALARM, AudioAttributes.USAGE_NOTIFICATION_RINGTONE,
+            AudioAttributes.USAGE_VOICE_COMMUNICATION, AudioAttributes.USAGE_VOICE_COMMUNICATION_SIGNALLING)
         const val ACTION_LOCK = "dev.soundlock.LOCK"
         const val ACTION_CONFIRM = "dev.soundlock.CONFIRM"
         const val ACTION_TIMER = "dev.soundlock.TIMER"
