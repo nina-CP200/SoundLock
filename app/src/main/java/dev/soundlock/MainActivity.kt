@@ -2,10 +2,12 @@ package dev.soundlock
 
 import android.Manifest
 import android.app.AlarmManager
+import android.app.LocaleManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.LocaleList
 import android.os.SystemClock
 import android.provider.Settings
 import android.widget.Toast
@@ -24,6 +26,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,13 +57,17 @@ class MainActivity : ComponentActivity() {
     fun openProject() {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/nina-CP200/SoundLock"))
         runCatching { startActivity(intent) }.onFailure {
-            Toast.makeText(this, "未找到可打开链接的应用", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_no_app_for_link), Toast.LENGTH_SHORT).show()
         }
     }
     fun notifications() {
         if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 10)
         else startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
+    }
+    fun setLanguage(tag: String?) {
+        val locales = if (tag == null) LocaleList.getEmptyLocaleList() else LocaleList.forLanguageTags(tag)
+        getSystemService(LocaleManager::class.java).applicationLocales = locales
     }
 }
 
@@ -88,34 +95,47 @@ private fun SoundLockScreen(settingsRevision: Int) {
     }
     var showDisclosure by remember { mutableStateOf(false) }
     var showIdleTimeout by remember { mutableStateOf(false) }
+    var showLanguage by remember { mutableStateOf(false) }
     var showUnlock by remember { mutableStateOf(false) }
     var unlockError by remember { mutableStateOf<String?>(null) }
     var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
     LaunchedEffect(state.deadline) { while (true) { now = SystemClock.elapsedRealtime(); delay(1_000) } }
     val notificationsAllowed = remember(settingsRevision) { activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED }
     val exactAllowed = remember(settingsRevision) { activity.getSystemService(AlarmManager::class.java).canScheduleExactAlarms() }
-    val colors = MaterialTheme.colorScheme
-    val headline = when {
-        !state.connected -> "尚未开启"
-        !state.armed -> "保护已暂停"
-        state.problem != null -> "保护异常"
-        state.route == LockPolicy.Route.UNKNOWN -> "正在检查"
-        state.route == LockPolicy.Route.EXTERNAL -> "外接设备使用中"
-        state.unlocked -> "外放已解锁"
-        else -> "外放已锁定"
+    val languageTag = remember(settingsRevision) {
+        activity.getSystemService(LocaleManager::class.java).applicationLocales
+            .takeUnless { it.isEmpty }?.get(0)?.toLanguageTag()
     }
+    val languageLabel = stringResource(when {
+        languageTag == null -> R.string.language_system
+        languageTag.startsWith("zh-Hant") || languageTag.startsWith("zh-TW") ||
+            languageTag.startsWith("zh-HK") || languageTag.startsWith("zh-MO") -> R.string.language_zh_hant
+        languageTag.startsWith("zh") -> R.string.language_zh_hans
+        else -> R.string.language_en
+    })
+    val colors = MaterialTheme.colorScheme
+    val headline = stringResource(when {
+        !state.connected -> R.string.status_disconnected_title
+        !state.armed -> R.string.status_paused_title
+        state.problem != null -> R.string.status_problem_title
+        state.route == LockPolicy.Route.UNKNOWN -> R.string.status_checking_title
+        state.route == LockPolicy.Route.EXTERNAL -> R.string.status_external_title
+        state.unlocked -> R.string.status_unlocked_title
+        else -> R.string.status_locked_title
+    })
     val detail = when {
-        !state.connected -> "开启服务，保护媒体外放。"
-        !state.armed -> "开启保护后重新上锁。"
+        !state.connected -> stringResource(R.string.status_disconnected_detail)
+        !state.armed -> stringResource(R.string.status_paused_detail)
         state.problem != null -> state.problem
-        state.route == LockPolicy.Route.UNKNOWN -> "暂时保持媒体静音。"
-        state.route == LockPolicy.Route.EXTERNAL -> "切回手机后自动上锁。"
+        state.route == LockPolicy.Route.UNKNOWN -> stringResource(R.string.status_checking_detail)
+        state.route == LockPolicy.Route.EXTERNAL -> stringResource(R.string.status_external_detail)
         state.unlocked && state.deadline != null -> {
             val seconds = ((state.deadline - now).coerceAtLeast(0) + 999) / 1000
-            "%02d:%02d 后自动上锁".format(seconds / 60, seconds % 60)
+            stringResource(R.string.status_countdown,
+                stringResource(R.string.countdown_value, seconds / 60, seconds % 60))
         }
-        state.unlocked -> "播放结束后开始自动上锁计时。"
-        else -> "按音量加键，确认后解锁。"
+        state.unlocked -> stringResource(R.string.status_unlocked_idle_detail)
+        else -> stringResource(R.string.status_locked_detail)
     }
     Scaffold(containerColor = colors.surface) { insets ->
         Box(Modifier.fillMaxSize().padding(insets), contentAlignment = Alignment.TopCenter) {
@@ -125,13 +145,13 @@ private fun SoundLockScreen(settingsRevision: Int) {
                     .verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
                     Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 28.dp), verticalAlignment = Alignment.CenterVertically) {
                         if (page != "home") {
-                            TextButton(onClick = { page = when (page) { "help", "words" -> "about"; else -> "home" } }) { Text("返回") }
+                            TextButton(onClick = { page = when (page) { "help", "words" -> "about"; else -> "home" } }) { Text(stringResource(R.string.action_back)) }
                             Spacer(Modifier.width(8.dp))
                         }
-                        Text(when (page) {
-                            "settings" -> "设置"; "about" -> "关于"; "help" -> "使用说明"
-                            "words" -> "我要说的话"; else -> "声锁"
-                        }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(when (page) {
+                            "settings" -> R.string.page_settings; "about" -> R.string.page_about; "help" -> R.string.page_help
+                            "words" -> R.string.page_words; else -> R.string.app_name
+                        }), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                     }
                     when (page) {
                         "home" -> {
@@ -144,62 +164,73 @@ private fun SoundLockScreen(settingsRevision: Int) {
                                 color = if (state.problem != null) colors.error else colors.onSurfaceVariant)
                             Spacer(Modifier.height(28.dp))
                             when {
-                                !state.connected -> Button(onClick = { showDisclosure = true }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("开启保护") }
-                                !state.armed -> Button(onClick = { GuardState.setArmed(activity, true) }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("开启保护") }
-                                state.unlocked -> Button(onClick = { GuardState.service?.lockNow() }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("立即上锁") }
-                                state.route == LockPolicy.Route.SPEAKER -> Button(onClick = { unlockError = null; showUnlock = true }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("解锁外放") }
-                                state.route == LockPolicy.Route.UNKNOWN || state.problem != null -> OutlinedButton(onClick = { GuardState.service?.checkTimer() }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("重新检查") }
+                                !state.connected -> Button(onClick = { showDisclosure = true }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.action_enable_protection)) }
+                                !state.armed -> Button(onClick = { GuardState.setArmed(activity, true) }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.action_enable_protection)) }
+                                state.unlocked -> Button(onClick = { GuardState.service?.lockNow() }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.action_lock_now)) }
+                                state.route == LockPolicy.Route.SPEAKER -> Button(onClick = { unlockError = null; showUnlock = true }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.action_unlock_speaker)) }
+                                state.route == LockPolicy.Route.UNKNOWN || state.problem != null -> OutlinedButton(onClick = { GuardState.service?.checkTimer() }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.action_check_again)) }
                             }
                             Spacer(Modifier.height(40.dp))
                             Row(Modifier.fillMaxWidth().heightIn(min = 64.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text("外放保护", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                                Text(stringResource(R.string.row_speaker_protection), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                                 Switch(checked = state.armed, onCheckedChange = { GuardState.setArmed(activity, it) })
                             }
                             HorizontalDivider(color = colors.outlineVariant)
-                            PageRow("设置") { page = "settings" }
+                            PageRow(stringResource(R.string.page_settings)) { page = "settings" }
                             HorizontalDivider(color = colors.outlineVariant)
-                            PageRow("关于") { page = "about" }
+                            PageRow(stringResource(R.string.page_about)) { page = "about" }
                         }
                         "settings" -> {
-                            SettingRow("音量保护服务", if (state.connected) "已开启" else "未开启", "管理") { showDisclosure = true }
+                            SettingRow(stringResource(R.string.setting_service), stringResource(if (state.connected) R.string.value_on else R.string.value_off), stringResource(R.string.action_manage)) { showDisclosure = true }
                             HorizontalDivider(color = colors.outlineVariant)
-                            SettingRow("自动上锁时长", "${state.idleMinutes} 分钟", "选择") { showIdleTimeout = true }
+                            SettingRow(stringResource(R.string.setting_idle_timeout), stringResource(R.string.minutes_value, state.idleMinutes), stringResource(R.string.action_choose)) { showIdleTimeout = true }
                             HorizontalDivider(color = colors.outlineVariant)
-                            SettingRow("状态通知", if (notificationsAllowed) "已允许" else "未允许", "管理") { activity.notifications() }
+                            SettingRow(stringResource(R.string.setting_language), languageLabel, stringResource(R.string.action_choose)) { showLanguage = true }
                             HorizontalDivider(color = colors.outlineVariant)
-                            SettingRow("自动上锁计时", if (exactAllowed) "精确定时已允许" else "精确定时未允许", "设置") { activity.openSettings(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, true) }
+                            SettingRow(stringResource(R.string.setting_notifications), stringResource(if (notificationsAllowed) R.string.value_allowed else R.string.value_not_allowed), stringResource(R.string.action_manage)) { activity.notifications() }
                             HorizontalDivider(color = colors.outlineVariant)
-                            SettingRow("后台运行", "应用系统设置", "设置") { activity.openSettings(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, true) }
+                            SettingRow(stringResource(R.string.setting_exact_alarm), stringResource(if (exactAllowed) R.string.setting_exact_allowed else R.string.setting_exact_not_allowed), stringResource(R.string.action_settings)) { activity.openSettings(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, true) }
+                            HorizontalDivider(color = colors.outlineVariant)
+                            SettingRow(stringResource(R.string.setting_background), stringResource(R.string.setting_background_detail), stringResource(R.string.action_settings)) { activity.openSettings(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, true) }
                         }
                         "about" -> {
-                            Text("声锁", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.height(8.dp))
-                            Text("版本 " + BuildConfig.VERSION_NAME, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                            Text(stringResource(R.string.about_version, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
                             Spacer(Modifier.height(32.dp))
-                            PageRow("使用说明") { page = "help" }
+                            PageRow(stringResource(R.string.page_help)) { page = "help" }
                             HorizontalDivider(color = colors.outlineVariant)
-                            PageRow("我要说的话") { page = "words" }
+                            PageRow(stringResource(R.string.page_words)) { page = "words" }
                             HorizontalDivider(color = colors.outlineVariant)
-                            PageRow("GitHub 项目") { activity.openProject() }
+                            PageRow(stringResource(R.string.about_github)) { activity.openProject() }
                         }
                         "help" -> {
-                            HelpSection("锁定与解锁", "锁定后，按音量加键会弹出顶部确认提示，点击「确认解锁」后才能外放。也可以在首页解锁。解锁恢复低音量，不恢复之前的音量。取消或超时后提示会隐藏，平时没有悬浮球。")
-                            HelpSection("自动上锁", "连续 ${state.idleMinutes} 分钟没有媒体播放后自动上锁；播放期间不计时。媒体音量调回零、耳机断开或保护服务重连时，也会重新上锁。可在「设置 → 自动上锁时长」改为 5 / 15 / 30 / 60 分钟；系统快捷设置里也可以添加「声锁」磁贴，随时上锁。")
-                            HelpSection("耳机与通话", "外接设备正常使用，切回手机扬声器后重新上锁。声锁只保护媒体外放，不调整通话、铃声和闹钟音量。")
-                            HelpSection("权限与后台", "无障碍服务用于接收音量键和显示确认提示，不读取屏幕内容。状态通知提供上锁入口。精确定时用于息屏后的自动上锁；未允许时可能延迟。ColorOS 中还需留意应用的后台活动和自启动设置。")
-                            HelpSection("音量适配", "声锁会自动选择音量控制方式。部分 OPPO 设备的后台媒体音量接口受限，会通过与媒体联动的无障碍音量通道归零。若已有独立读屏音量，则使用标准媒体接口。兼容通道的音量读数只是估计，最低档不代表已确认静音。")
-                            HelpSection("使用范围", "普通应用无法保证绝对零漏音。系统或其他应用调高音量后，声锁会尽快归零；服务被停止时无法继续保护。顶部提示由声锁显示，尚未接入 OPPO 原生流体云。")
-                            HelpSection("隐私", "本机处理，不申请网络或麦克风权限，不录音，不收集屏幕内容。")
-                            Text("当前状态", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            HelpSection(stringResource(R.string.help_lock_title), stringResource(R.string.help_lock_body))
+                            HelpSection(stringResource(R.string.help_auto_lock_title), stringResource(R.string.help_auto_lock_body, pluralStringResource(R.plurals.minutes_phrase, state.idleMinutes, state.idleMinutes)))
+                            HelpSection(stringResource(R.string.help_headphones_title), stringResource(R.string.help_headphones_body))
+                            HelpSection(stringResource(R.string.help_permissions_title), stringResource(R.string.help_permissions_body))
+                            HelpSection(stringResource(R.string.help_volume_title), stringResource(R.string.help_volume_body))
+                            HelpSection(stringResource(R.string.help_scope_title), stringResource(R.string.help_scope_body))
+                            HelpSection(stringResource(R.string.help_privacy_title), stringResource(R.string.help_privacy_body))
+                            Text(stringResource(R.string.help_current_state), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.height(16.dp))
-                            InfoLine("输出设备", when (state.route) { LockPolicy.Route.SPEAKER -> "手机扬声器"; LockPolicy.Route.EXTERNAL -> "外接设备"; else -> "暂未确认" })
+                            InfoLine(stringResource(R.string.help_output_device), stringResource(when (state.route) {
+                                LockPolicy.Route.SPEAKER -> R.string.help_output_speaker
+                                LockPolicy.Route.EXTERNAL -> R.string.help_output_external
+                                else -> R.string.help_output_unknown
+                            }))
                             Spacer(Modifier.height(12.dp))
-                            InfoLine("媒体音量", "${if (state.volumeEstimated) "约 " else ""}${state.volume} / ${state.maxVolume}")
+                            InfoLine(stringResource(R.string.help_media_volume), stringResource(
+                                if (state.volumeEstimated) R.string.volume_value_estimated else R.string.volume_value,
+                                state.volume, state.maxVolume))
                             Spacer(Modifier.height(12.dp))
-                            InfoLine("控制方式", state.volumeMode)
+                            InfoLine(stringResource(R.string.help_control_mode), stringResource(when (state.volumeMode) {
+                                VolumeMode.STANDARD -> R.string.volume_mode_standard
+                                VolumeMode.ACCESSIBILITY -> R.string.volume_mode_accessibility
+                            }))
                         }
                         "words" -> {
-                            Text(stringResource(R.string.about_message).ifBlank { "暂无内容" }, style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
+                            Text(stringResource(R.string.about_message), style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
                         }
                     }
                 }
@@ -208,23 +239,23 @@ private fun SoundLockScreen(settingsRevision: Int) {
     }
     if (showDisclosure) AlertDialog(
         onDismissRequest = { showDisclosure = false },
-        title = { Text("开启保护服务") },
-        text = { Text("声锁需要无障碍服务来接收音量键并显示解锁提示，不读取屏幕内容或收集输入文字。\n\n请在系统设置中开启「声锁 · 音量保护」。若提示受限设置，请先在应用信息中允许。你可以随时暂停保护或关闭服务。") },
-        confirmButton = { TextButton(onClick = { showDisclosure = false; activity.openSettings(Settings.ACTION_ACCESSIBILITY_SETTINGS) }) { Text("前往系统设置") } },
-        dismissButton = { TextButton(onClick = { showDisclosure = false }) { Text("暂不开启") } }
+        title = { Text(stringResource(R.string.disclosure_title)) },
+        text = { Text(stringResource(R.string.disclosure_body)) },
+        confirmButton = { TextButton(onClick = { showDisclosure = false; activity.openSettings(Settings.ACTION_ACCESSIBILITY_SETTINGS) }) { Text(stringResource(R.string.action_open_system_settings)) } },
+        dismissButton = { TextButton(onClick = { showDisclosure = false }) { Text(stringResource(R.string.action_not_now)) } }
     )
     if (showUnlock) AlertDialog(
-        onDismissRequest = { showUnlock = false }, title = { Text("解锁外放？") },
-        text = { Text(unlockError ?: "恢复低音量，停止播放 ${state.idleMinutes} 分钟后自动上锁。") },
+        onDismissRequest = { showUnlock = false }, title = { Text(stringResource(R.string.unlock_dialog_title)) },
+        text = { Text(unlockError ?: stringResource(R.string.unlock_dialog_body, pluralStringResource(R.plurals.minutes_phrase, state.idleMinutes, state.idleMinutes))) },
         confirmButton = { TextButton(onClick = {
             val service = GuardState.service
             if (service?.confirmUnlock() == true) { showUnlock = false; service.showUnlockFeedback() }
-            else unlockError = service?.unlockFailureMessage ?: "保护服务尚未连接，请重新开启服务。"
-        }) { Text("确认解锁") } },
-        dismissButton = { TextButton(onClick = { showUnlock = false }) { Text("保持静音") } }
+            else unlockError = service?.unlockFailureMessage ?: activity.getString(R.string.unlock_service_disconnected)
+        }) { Text(stringResource(R.string.action_confirm_unlock)) } },
+        dismissButton = { TextButton(onClick = { showUnlock = false }) { Text(stringResource(R.string.action_keep_muted)) } }
     )
     if (showIdleTimeout) AlertDialog(
-        onDismissRequest = { showIdleTimeout = false }, title = { Text("自动上锁时长") },
+        onDismissRequest = { showIdleTimeout = false }, title = { Text(stringResource(R.string.idle_timeout_title)) },
         text = {
             val choose: (Int) -> Unit = { GuardState.setIdleMinutes(activity, it); showIdleTimeout = false }
             Column {
@@ -232,17 +263,40 @@ private fun SoundLockScreen(settingsRevision: Int) {
                     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { choose(minutes) },
                         verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(selected = minutes == state.idleMinutes, onClick = { choose(minutes) })
-                        Text("$minutes 分钟", style = MaterialTheme.typography.bodyLarge)
+                        Text(stringResource(R.string.minutes_value, minutes), style = MaterialTheme.typography.bodyLarge)
                     }
                 }
             }
         },
         confirmButton = {},
-        dismissButton = { TextButton(onClick = { showIdleTimeout = false }) { Text("取消") } }
+        dismissButton = { TextButton(onClick = { showIdleTimeout = false }) { Text(stringResource(R.string.action_cancel)) } }
+    )
+    if (showLanguage) AlertDialog(
+        onDismissRequest = { showLanguage = false }, title = { Text(stringResource(R.string.language_dialog_title)) },
+        text = {
+            val choose: (String?) -> Unit = { activity.setLanguage(it); showLanguage = false }
+            Column {
+                LANGUAGES.forEach { (tag, labelRes) ->
+                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { choose(tag) },
+                        verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = tag == languageTag, onClick = { choose(tag) })
+                        Text(stringResource(labelRes), style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = { showLanguage = false }) { Text(stringResource(R.string.action_cancel)) } }
     )
 }
 
 private val IDLE_MINUTES = listOf(5, 15, 30, 60)
+private val LANGUAGES = listOf(
+    null to R.string.language_system,
+    "zh" to R.string.language_zh_hans,
+    "zh-Hant" to R.string.language_zh_hant,
+    "en" to R.string.language_en
+)
 
 @Composable
 private fun PageRow(title: String, onClick: () -> Unit) {

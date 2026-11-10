@@ -1,0 +1,120 @@
+<resources>
+    <!-- 繁體中文。作者寄語與主題不在此檔案，沿用 values/ 中的原文。 -->
+    <string name="app_name">聲鎖</string>
+    <string name="accessibility_service_label">聲鎖 · 音量保護</string>
+    <string name="accessibility_description">聲鎖需要接收音量鍵，在手機媒體外放被鎖定時攔截音量加鍵，並顯示確認解鎖膠囊。不會讀取螢幕內容、代替你點擊螢幕或蒐集輸入文字。僅調整媒體音量，不調整通話、鈴聲和鬧鐘。可隨時在聲鎖中暫停保護，或在此關閉服務。</string>
+
+    <string name="page_settings">設定</string>
+    <string name="page_about">關於</string>
+    <string name="page_help">使用說明</string>
+    <string name="page_words">我要說的話</string>
+    <string name="action_back">返回</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_manage">管理</string>
+    <string name="action_settings">設定</string>
+    <string name="action_choose">選擇</string>
+    <string name="action_lock_now">立即上鎖</string>
+    <string name="action_confirm_unlock">確認解鎖</string>
+    <string name="action_keep_muted">保持靜音</string>
+    <string name="action_enable_protection">開啟保護</string>
+    <string name="action_unlock_speaker">解鎖外放</string>
+    <string name="action_check_again">重新檢查</string>
+    <string name="action_open_system_settings">前往系統設定</string>
+    <string name="action_not_now">暫不開啟</string>
+
+    <string name="status_disconnected_title">尚未開啟</string>
+    <string name="status_disconnected_detail">開啟服務，保護媒體外放。</string>
+    <string name="status_paused_title">保護已暫停</string>
+    <string name="status_paused_detail">開啟保護後重新上鎖。</string>
+    <string name="status_problem_title">保護異常</string>
+    <string name="status_checking_title">正在檢查</string>
+    <string name="status_checking_detail">暫時保持媒體靜音。</string>
+    <string name="status_external_title">外接裝置使用中</string>
+    <string name="status_external_detail">切回手機後自動上鎖。</string>
+    <string name="status_unlocked_title">外放已解鎖</string>
+    <string name="status_countdown">%1$s 後自動上鎖</string>
+    <string name="countdown_value">%1$02d:%2$02d</string>
+    <string name="status_unlocked_idle_detail">播放結束後開始自動上鎖計時。</string>
+    <string name="status_locked_title">外放已鎖定</string>
+    <string name="status_locked_detail">按音量加鍵，確認後解鎖。</string>
+    <string name="row_speaker_protection">外放保護</string>
+
+    <string name="setting_service">音量保護服務</string>
+    <string name="value_on">已開啟</string>
+    <string name="value_off">未開啟</string>
+    <string name="setting_idle_timeout">自動上鎖時長</string>
+    <string name="minutes_value">%1$d 分鐘</string>
+    <string name="setting_notifications">狀態通知</string>
+    <string name="value_allowed">已允許</string>
+    <string name="value_not_allowed">未允許</string>
+    <string name="setting_exact_alarm">自動上鎖計時</string>
+    <string name="setting_exact_allowed">精確定時已允許</string>
+    <string name="setting_exact_not_allowed">精確定時未允許</string>
+    <string name="setting_background">背景執行</string>
+    <string name="setting_background_detail">應用程式系統設定</string>
+    <string name="setting_language">語言</string>
+    <string name="language_system">跟隨系統</string>
+    <string name="language_zh_hans">简体中文 🇸🇬</string>
+    <string name="language_zh_hant">繁體中文 🇲🇴</string>
+    <string name="language_en">English 🇳🇿</string>
+
+    <string name="about_version">版本 %1$s</string>
+    <string name="about_github">GitHub 專案</string>
+    <string name="toast_no_app_for_link">找不到可開啟連結的應用程式</string>
+
+    <string name="disclosure_title">開啟保護服務</string>
+    <string name="disclosure_body">聲鎖需要無障礙服務來接收音量鍵並顯示解鎖提示，不讀取螢幕內容或蒐集輸入文字。\n\n請在系統設定中開啟「聲鎖 · 音量保護」。若提示受限設定，請先在應用程式資訊中允許。你可以隨時暫停保護或關閉服務。</string>
+    <string name="unlock_dialog_title">解鎖外放？</string>
+    <string name="unlock_dialog_body">恢復低音量，停止播放 %1$s 後自動上鎖。</string>
+    <string name="unlock_service_disconnected">保護服務尚未連線，請重新開啟服務。</string>
+    <string name="idle_timeout_title">自動上鎖時長</string>
+    <string name="language_dialog_title">語言</string>
+
+    <string name="help_lock_title">鎖定與解鎖</string>
+    <string name="help_lock_body">鎖定後，按音量加鍵會彈出頂部確認提示，點擊「確認解鎖」後才能外放；也可以在首頁解鎖。解鎖只恢復低音量，不恢復之前的音量。取消或逾時後提示會隱藏，平時沒有懸浮球。</string>
+    <string name="help_auto_lock_title">自動上鎖</string>
+    <string name="help_auto_lock_body">連續 %1$s 沒有媒體播放後自動上鎖，播放期間不計時。媒體音量調回零、耳機斷開、輸出路徑變更或服務重新連線也會重新上鎖。時長可在「設定 → 自動上鎖時長」中調整；把「聲鎖」圖磚加到系統快速設定裡，可以隨時上鎖。</string>
+    <string name="help_headphones_title">耳機與通話</string>
+    <string name="help_headphones_body">外接裝置正常使用，切回手機喇叭後重新上鎖。聲鎖只保護媒體外放，不調整通話、鈴聲和鬧鐘音量。</string>
+    <string name="help_permissions_title">權限與背景執行</string>
+    <string name="help_permissions_body">無障礙服務用於接收音量鍵和顯示確認提示，不讀取螢幕內容；狀態通知提供上鎖入口；精確定時讓自動上鎖在螢幕關閉後按時生效，未允許時可能延遲。ColorOS 中還須留意應用程式的背景活動與自啟動設定。</string>
+    <string name="help_volume_title">音量相容性</string>
+    <string name="help_volume_body">聲鎖自動選擇音量控制方式。部分 OPPO 裝置限制背景媒體音量寫入，會改用與媒體連動的無障礙音量通道歸零；若已有獨立的螢幕閱讀器音量通道，則使用標準媒體介面。相容通道的音量讀數只是估計，最低檔不代表已確認靜音。</string>
+    <string name="help_scope_title">使用範圍</string>
+    <string name="help_scope_body">一般應用程式無法保證絕對不漏音。系統或其他應用程式調高音量後，聲鎖會儘快歸零；服務被停止時無法繼續保護。頂部提示由聲鎖自己繪製，尚未接入 OPPO 原生流體雲。</string>
+    <string name="help_privacy_title">隱私</string>
+    <string name="help_privacy_body">本機處理：不申請網路或麥克風權限，不錄音，不蒐集螢幕內容。</string>
+    <string name="help_current_state">目前狀態</string>
+    <string name="help_output_device">輸出裝置</string>
+    <string name="help_output_speaker">手機喇叭</string>
+    <string name="help_output_external">外接裝置</string>
+    <string name="help_output_unknown">尚未確認</string>
+    <string name="help_media_volume">媒體音量</string>
+    <string name="volume_value">%1$d / %2$d</string>
+    <string name="volume_value_estimated">約 %1$d / %2$d</string>
+    <string name="help_control_mode">控制方式</string>
+    <string name="volume_mode_standard">標準媒體音量</string>
+    <string name="volume_mode_accessibility">無障礙音量相容</string>
+
+    <string name="guard_problem_read_failed">音訊狀態讀取失敗，請重新開啟保護</string>
+    <string name="guard_problem_mute_pending">正在將媒體音量歸零；尚未確認靜音</string>
+    <string name="guard_problem_mute_denied">系統拒絕調整媒體音量，保護未完全生效</string>
+    <string name="capsule_restore_one_notch">恢復低音量</string>
+    <string name="capsule_window_title">聲鎖確認</string>
+    <string name="unlock_ok_silent">已解鎖，可調高音量</string>
+    <string name="unlock_failed_screen_locked">請先解鎖手機螢幕，再按音量加鍵重試</string>
+    <string name="unlock_failed_paused">保護已暫停，音量鍵可直接調整</string>
+    <string name="unlock_failed_route_changed">輸出裝置已變更，請按音量加鍵重試</string>
+    <string name="unlock_failed_denied">系統拒絕調整媒體音量，維持鎖定；可在此重試</string>
+    <string name="unlock_failed_default">無法解鎖，請重試</string>
+    <string name="notification_channel_name">保護狀態</string>
+    <string name="notification_unlock_hint">點擊後確認解鎖</string>
+    <string name="notification_auto_lock_in">停止播放 %1$s 後自動上鎖</string>
+    <plurals name="minutes_phrase">
+        <item quantity="other">%1$d 分鐘</item>
+    </plurals>
+    <string name="tile_off">尚未啟用</string>
+    <string name="tile_unlocked">允許外放 · 點擊上鎖</string>
+    <string name="tile_locked">已上鎖 · 點擊查看</string>
+    <string name="tile_description">聲鎖，%1$s</string>
+</resources>

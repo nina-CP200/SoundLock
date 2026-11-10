@@ -6,6 +6,7 @@ import android.Manifest
 import android.accessibilityservice.AccessibilityService
 import android.app.*
 import android.content.*
+import android.content.res.Configuration
 import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.media.*
@@ -28,8 +29,8 @@ class GuardService : AccessibilityService() {
     private var problem: String? = null
     private val muteProblem get() = when (muteRefresh.status) {
         MuteRefresh.Status.CLEAR -> null
-        MuteRefresh.Status.PENDING -> "正在将媒体音量归零；尚未确认静音"
-        MuteRefresh.Status.REJECTED -> "系统拒绝调整媒体音量，保护未完全生效"
+        MuteRefresh.Status.PENDING -> getString(R.string.guard_problem_mute_pending)
+        MuteRefresh.Status.REJECTED -> getString(R.string.guard_problem_mute_denied)
     }
     private var scheduledDeadline: Long? = null
     private val keyGate = VolumeKeyGate()
@@ -61,7 +62,7 @@ class GuardService : AccessibilityService() {
     private var lockFeedbackCount = 0L
     private var lastUnlockResult = "none"
     private var lastUnlockError: String? = null
-    val unlockFailureMessage get() = lastUnlockError ?: "未能解锁，请重试"
+    val unlockFailureMessage get() = lastUnlockError ?: getString(R.string.unlock_failed_default)
     private val alarmIntent by lazy {
         PendingIntent.getBroadcast(this, 1, Intent(this, LockReceiver::class.java).setAction(ACTION_TIMER), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
@@ -172,7 +173,7 @@ class GuardService : AccessibilityService() {
             policy.updateRoute(LockPolicy.Route.UNKNOWN)
             policy.lock()
             if (policy.armed) muteMedia()
-            problem = "音频状态读取失败，请重新开启保护"
+            problem = getString(R.string.guard_problem_read_failed)
             reconcileCapsule()
             publish()
         }
@@ -219,7 +220,7 @@ class GuardService : AccessibilityService() {
     private fun showLockFeedback() {
         if (problem == null && canInteract() && audio.mode == AudioManager.MODE_NORMAL && !interruptingAudio) {
             lockFeedbackCount++
-            capsule.showMessage("外放已锁定", false)
+            capsule.showMessage(getString(R.string.status_locked_title), false)
         }
     }
     fun checkTimer() { if (ready) inspect() }
@@ -242,9 +243,9 @@ class GuardService : AccessibilityService() {
     fun confirmUnlock(): Boolean {
         inspect()
         lastUnlockError = when {
-            !canInteract() -> "请先解锁手机屏幕，再按音量加键重试"
-            !policy.armed -> "保护已暂停，音量键可直接调节"
-            policy.route != LockPolicy.Route.SPEAKER -> "输出设备已变化，请按音量加键重试"
+            !canInteract() -> getString(R.string.unlock_failed_screen_locked)
+            !policy.armed -> getString(R.string.unlock_failed_paused)
+            policy.route != LockPolicy.Route.SPEAKER -> getString(R.string.unlock_failed_route_changed)
             else -> null
         }
         if (lastUnlockError != null || !policy.unlock(SystemClock.elapsedRealtime())) {
@@ -265,14 +266,14 @@ class GuardService : AccessibilityService() {
         } catch (e: RuntimeException) {
             policy.lock()
             muteMedia()
-            lastUnlockError = "系统拒绝调整媒体音量，保持锁定；可在此重试"
+            lastUnlockError = getString(R.string.unlock_failed_denied)
             lastUnlockResult = "exception: " + e.javaClass.simpleName + ": " + e.message
             problem = lastUnlockError
             publish()
             return false
         }
     }
-    val unlockSuccessMessage get() = if (volumeControl.read().volume > 0) "外放已解锁" else "已解锁，可调高音量"
+    val unlockSuccessMessage get() = if (volumeControl.read().volume > 0) getString(R.string.status_unlocked_title) else getString(R.string.unlock_ok_silent)
     fun showUnlockFeedback() { if (canInteract()) capsule.showMessage(unlockSuccessMessage, true) }
     private fun canInteract() = ready && getSystemService(PowerManager::class.java).isInteractive && !getSystemService(KeyguardManager::class.java).isKeyguardLocked
 
@@ -345,19 +346,25 @@ class GuardService : AccessibilityService() {
     private fun updateNotification(state: GuardSnapshot) {
         val nm = getSystemService(NotificationManager::class.java)
         if (!state.armed) { nm.cancel(2); return }
-        nm.createNotificationChannel(NotificationChannel("protection", "保护状态", NotificationManager.IMPORTANCE_LOW).apply {
+        nm.createNotificationChannel(NotificationChannel("protection", getString(R.string.notification_channel_name), NotificationManager.IMPORTANCE_LOW).apply {
             setSound(null, null); enableVibration(false); setShowBadge(false)
         })
         if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val lock = PendingIntent.getBroadcast(this, 2, Intent(this, LockReceiver::class.java).setAction(ACTION_LOCK), PendingIntent.FLAG_IMMUTABLE)
         val confirm = PendingIntent.getBroadcast(this, 4, Intent(this, LockReceiver::class.java).setAction(ACTION_CONFIRM), PendingIntent.FLAG_IMMUTABLE)
-        val title = when { state.problem != null -> "保护需要检查"; state.route == LockPolicy.Route.EXTERNAL -> "外接设备使用中"; state.unlocked -> "外放已解锁"; else -> "外放已锁定" }
+        val title = when {
+            state.problem != null -> getString(R.string.status_problem_title)
+            state.route == LockPolicy.Route.EXTERNAL -> getString(R.string.status_external_title)
+            state.unlocked -> getString(R.string.status_unlocked_title)
+            else -> getString(R.string.status_locked_title)
+        }
+        val minutesPhrase = resources.getQuantityString(R.plurals.minutes_phrase, state.idleMinutes, state.idleMinutes)
         val notification = Notification.Builder(this, "protection").setSmallIcon(R.drawable.ic_lock).setContentTitle(title)
-            .setContentText(if (state.unlocked) "停止播放 ${state.idleMinutes} 分钟后自动上锁" else "点击后确认解锁").setContentIntent(if (state.route == LockPolicy.Route.SPEAKER && !state.unlocked) confirm else open).setOngoing(true).setOnlyAlertOnce(true)
+            .setContentText(if (state.unlocked) getString(R.string.notification_auto_lock_in, minutesPhrase) else getString(R.string.notification_unlock_hint)).setContentIntent(if (state.route == LockPolicy.Route.SPEAKER && !state.unlocked) confirm else open).setOngoing(true).setOnlyAlertOnce(true)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
-        if (state.route == LockPolicy.Route.SPEAKER && !state.unlocked) notification.addAction(Notification.Action.Builder(null, "确认解锁", confirm).build())
-        notification.addAction(Notification.Action.Builder(null, "立即上锁", lock).build())
+        if (state.route == LockPolicy.Route.SPEAKER && !state.unlocked) notification.addAction(Notification.Action.Builder(null, getString(R.string.action_confirm_unlock), confirm).build())
+        notification.addAction(Notification.Action.Builder(null, getString(R.string.action_lock_now), lock).build())
         nm.notify(2, notification.build())
     }
     override fun dump(fd: FileDescriptor, writer: PrintWriter, args: Array<out String>?) {
@@ -369,6 +376,14 @@ class GuardService : AccessibilityService() {
         if (ready) writer.println("capsule=${capsule.status} canInteract=${canInteract()} audioMode=${audio.mode} interruptingAudio=$interruptingAudio")
     }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // A locale change does not alter the snapshot, so the edge-triggered publish would keep
+        // the old-language notification. Redraw it directly and drop any stale overlay text.
+        if (!ready) return
+        capsule.dismiss()
+        updateNotification(GuardState.current)
+    }
     override fun onInterrupt() { lockNow() }
     override fun onUnbind(intent: Intent?): Boolean { cleanup(); return super.onUnbind(intent) }
     override fun onDestroy() { cleanup(); super.onDestroy() }

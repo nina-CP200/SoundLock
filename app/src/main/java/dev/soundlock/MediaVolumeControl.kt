@@ -25,6 +25,8 @@ object VolumeScale {
     }
 }
 
+enum class VolumeMode { STANDARD, ACCESSIBILITY }
+
 class MediaVolumeControl(private val context: Context, private val audio: AudioManager) {
     data class Sample(val volume: Int, val maximum: Int, val estimated: Boolean,
         val media: Int, val accessibility: Int, val accessibilityMin: Int, val accessibilityMax: Int)
@@ -34,7 +36,7 @@ class MediaVolumeControl(private val context: Context, private val audio: AudioM
     private var useAccessibility = false
     var lastCommand: String = "none"; private set
     val unreliableZero get() = useAccessibility
-    val mode get() = if (useAccessibility) "无障碍音量兼容" else "标准媒体音量"
+    val mode get() = if (useAccessibility) VolumeMode.ACCESSIBILITY else VolumeMode.STANDARD
 
     fun refreshMode() {
         val services = context.getSystemService(AccessibilityManager::class.java)

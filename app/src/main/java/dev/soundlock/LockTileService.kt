@@ -10,8 +10,13 @@ class LockTileService : TileService() {
         val s = GuardState.current
         qsTile?.apply {
             state = if (!s.connected || !s.armed) Tile.STATE_INACTIVE else Tile.STATE_ACTIVE
-            subtitle = when { !s.connected -> "尚未启用"; !s.armed -> "保护已暂停"; s.unlocked -> "允许外放 · 点击上锁"; else -> "已上锁 · 点击查看" }
-            contentDescription = "声锁，$subtitle"
+            subtitle = when {
+                !s.connected -> getString(R.string.tile_off)
+                !s.armed -> getString(R.string.status_paused_title)
+                s.unlocked -> getString(R.string.tile_unlocked)
+                else -> getString(R.string.tile_locked)
+            }
+            contentDescription = getString(R.string.tile_description, subtitle)
             updateTile()
         }
     }

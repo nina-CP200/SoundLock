@@ -29,7 +29,12 @@ parent: soundlock-architecture
 
 ## 资源与文案
 
-`strings.xml` 里只有应用名、无障碍服务说明、作者寄语；其余界面文案是硬编码中文，界面未做本地化。无障碍说明是用户授权前唯一读到的权利说明，改权限或改行为时必须同改。
+- 三套文案：`values/` 是英文（也是默认回退）、`values-zh/` 简体、`values-b+zh+Hant/` 繁體。繁體必须用比 `values-zh` 更具体的限定符，否则繁體设备会落到简体。非中英文设备看到英文。
+- 代码里不允许出现硬编码文案：Compose 用 `stringResource`，服务、磁贴、浮层用 `context.getString`；清单里的应用名、无障碍服务名、磁贴名同样是资源引用。
+- 带数字的句子用 `plurals`：英语要单复数、中文只有一个形式，把整句塞进 `%d` 会在英文里错位。
+- 作者寄语 `about_message` 标 `translatable="false"` 且只存在于 `values/`：它是作者原文而不是界面文案，三种语言下都显示中文。
+- 声明 `android:localeConfig`（en / zh / zh-Hant），使系统的「应用语言」入口与应用内的三选一指向同一组标签。
+- 无障碍说明是用户授权前唯一读到的权利说明，改权限或改行为时必须同步修改。
 
 ## 签名与发布
 

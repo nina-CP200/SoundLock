@@ -15,7 +15,7 @@ data class GuardSnapshot(
     val volume: Int = 0,
     val maxVolume: Int = 15,
     val problem: String? = null,
-    val volumeMode: String = "标准媒体音量",
+    val volumeMode: VolumeMode = VolumeMode.STANDARD,
     val volumeEstimated: Boolean = false,
     val idleMinutes: Int = 15
 )
