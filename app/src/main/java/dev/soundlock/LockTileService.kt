@@ -13,7 +13,7 @@ class LockTileService : TileService() {
             subtitle = when {
                 !s.connected -> getString(R.string.tile_off)
                 !s.armed -> getString(R.string.status_paused_title)
-                s.unlocked -> getString(R.string.tile_unlocked)
+                s.unlocked || s.allowed -> getString(R.string.tile_unlocked)
                 else -> getString(R.string.tile_locked)
             }
             contentDescription = getString(R.string.tile_description, subtitle)
@@ -22,7 +22,7 @@ class LockTileService : TileService() {
     }
     override fun onClick() {
         val s = GuardState.current
-        if (s.connected && s.armed && s.unlocked) {
+        if (s.connected && s.armed && (s.unlocked || s.allowed)) {
             GuardState.service?.lockNow()
             onStartListening()
         } else unlockAndRun {
