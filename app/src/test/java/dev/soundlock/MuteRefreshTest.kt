@@ -56,4 +56,42 @@ class MuteRefreshTest {
         assertFalse(refresh.needed(5_000, true, false, 0, false))
         assertTrue(refresh.needed(5_000, true, false, 1, false))
     }
+
+    @Test fun rejectedMuteRemainsVisibleDuringThrottledCallbacks() {
+        val refresh = MuteRefresh()
+        refresh.attempted(1_000)
+        refresh.rejected()
+        refresh.observe(true, 10)
+        assertFalse(refresh.needed(1_050, true, false, 10, false))
+        assertEquals(MuteRefresh.Status.REJECTED, refresh.status)
+        refresh.observe(true, 10)
+        assertEquals(MuteRefresh.Status.REJECTED, refresh.status)
+    }
+
+    @Test fun positiveReadbackStaysPendingUntilZeroIsObserved() {
+        val refresh = MuteRefresh()
+        refresh.attempted(1_000)
+        refresh.observe(true, 10)
+        assertEquals(MuteRefresh.Status.PENDING, refresh.status)
+        refresh.observe(true, 1)
+        assertEquals(MuteRefresh.Status.PENDING, refresh.status)
+        refresh.observe(true, 0)
+        assertEquals(MuteRefresh.Status.CLEAR, refresh.status)
+    }
+
+    @Test fun verifiedZeroClearsRejectedMute() {
+        val refresh = MuteRefresh()
+        refresh.rejected()
+        refresh.observe(true, 0)
+        assertEquals(MuteRefresh.Status.CLEAR, refresh.status)
+    }
+
+    @Test fun leavingLockedProtectionClearsMuteFailure() {
+        val refresh = MuteRefresh()
+        refresh.rejected()
+        refresh.observe(false, 10)
+        assertEquals(MuteRefresh.Status.CLEAR, refresh.status)
+        refresh.observe(true, 10)
+        assertEquals(MuteRefresh.Status.PENDING, refresh.status)
+    }
 }

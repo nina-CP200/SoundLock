@@ -8,12 +8,15 @@ class VolumeKeyGate {
     private var held = false
 
     fun handle(action: Action, repeat: Int, locked: Boolean, exempt: Boolean): Decision {
+        if (exempt) {
+            held = false
+            return Decision(false, reason = "call-or-alarm")
+        }
         if (action == Action.UP && held) {
             held = false
             return Decision(true, mute = locked, reason = "consumed-release")
         }
         if (held) return Decision(true, mute = locked, reason = "consumed-repeat")
-        if (exempt) return Decision(false, reason = "call-or-alarm")
         if (!locked) return Decision(false, reason = "authorized-or-external")
         if (action != Action.DOWN) return Decision(false, reason = "unpaired-event")
         held = true

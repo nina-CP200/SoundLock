@@ -26,6 +26,11 @@ class GuardService : AccessibilityService() {
     private var pendingLockFeedback = false
     private lateinit var capsule: GuardCapsule
     private var problem: String? = null
+    private val muteProblem get() = when (muteRefresh.status) {
+        MuteRefresh.Status.CLEAR -> null
+        MuteRefresh.Status.PENDING -> "正在将媒体音量归零；尚未确认静音"
+        MuteRefresh.Status.REJECTED -> "系统拒绝调整媒体音量，保护未完全生效"
+    }
     private var scheduledDeadline: Long? = null
     private val keyGate = VolumeKeyGate()
     private var cachedAudioMode = AudioManager.MODE_NORMAL
@@ -141,7 +146,6 @@ class GuardService : AccessibilityService() {
         if (!ready) return
         val now = SystemClock.elapsedRealtime()
         try {
-            problem = null
             val previousRoute = policy.route
             policy.updateRoute(route())
             if (previousRoute != policy.route) capsule.dismiss()
@@ -151,11 +155,12 @@ class GuardService : AccessibilityService() {
                 AudioAttributes.USAGE_VOICE_COMMUNICATION, AudioAttributes.USAGE_VOICE_COMMUNICATION_SIGNALLING) }
             val active = configs.any { it.audioAttributes.usage in setOf(
                 AudioAttributes.USAGE_MEDIA, AudioAttributes.USAGE_GAME, AudioAttributes.USAGE_UNKNOWN) } || audio.isMusicActive
-            policy.updatePlayback(active, now)
+            val expired = policy.updatePlayback(active, now)
             volumeControl.refreshMode()
             val volume = volumeControl.read().volume
             policy.observeVolume(volume)
-            val expired = policy.tick(now)
+            muteRefresh.observe(policy.shouldMute, volume)
+            problem = muteProblem
             if (muteRefresh.needed(now, policy.shouldMute, volumeControl.unreliableZero, volume,
                     expired || forceMute)) muteMedia()
             if (!policy.shouldMute) forceMute = false
@@ -179,12 +184,14 @@ class GuardService : AccessibilityService() {
         try {
             volumeControl.mute()
             forceMute = false
-            problem = if (volumeControl.read().volume != 0) "正在将媒体音量归零；尚未确认静音" else null
+            muteRefresh.observe(policy.shouldMute, volumeControl.read().volume)
+            problem = muteProblem
             // The existing bounded polling loop verifies delayed vendor updates.
             // Do not spawn another retry loop for every failed mute attempt.
         } catch (e: RuntimeException) {
             forceMute = false
-            problem = "系统拒绝调整媒体音量，保护未完全生效"
+            muteRefresh.rejected()
+            problem = muteProblem
         }
     }
 

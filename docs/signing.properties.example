@@ -1,0 +1,4 @@
+storeFile=/absolute/path/to/soundlock-release.jks
+storePassword=REPLACE_WITH_STORE_PASSWORD
+keyAlias=soundlock
+keyPassword=REPLACE_WITH_KEY_PASSWORD

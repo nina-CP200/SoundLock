@@ -60,4 +60,33 @@ class VolumeKeyGateTest {
         assertFalse(gate.handle(VolumeKeyGate.Action.UP, 0, true, false).consume)
         assertTrue(gate.handle(VolumeKeyGate.Action.DOWN, 0, true, false).confirm)
     }
+
+    @Test fun alarmStartingDuringHeldKeyImmediatelyPassesRepeatsThrough() {
+        val gate = VolumeKeyGate()
+        assertTrue(gate.handle(VolumeKeyGate.Action.DOWN, 0, true, false).consume)
+        val repeat = gate.handle(VolumeKeyGate.Action.DOWN, 1, true, true)
+        assertFalse(repeat.consume)
+        assertFalse(repeat.mute)
+        assertFalse(repeat.confirm)
+        assertFalse(gate.handle(VolumeKeyGate.Action.UP, 0, true, true).consume)
+    }
+
+    @Test fun releaseDuringCallClearsPreviouslyConsumedGesture() {
+        val gate = VolumeKeyGate()
+        gate.handle(VolumeKeyGate.Action.DOWN, 0, true, false)
+        assertFalse(gate.handle(VolumeKeyGate.Action.UP, 0, true, true).consume)
+        assertTrue(gate.handle(VolumeKeyGate.Action.DOWN, 0, true, false).confirm)
+    }
+
+    @Test fun endingExemptionDuringHeldKeyDoesNotRequestConfirmation() {
+        val gate = VolumeKeyGate()
+        gate.handle(VolumeKeyGate.Action.DOWN, 0, true, false)
+        gate.handle(VolumeKeyGate.Action.DOWN, 1, true, true)
+        val repeat = gate.handle(VolumeKeyGate.Action.DOWN, 2, true, false)
+        assertTrue(repeat.consume)
+        assertTrue(repeat.mute)
+        assertFalse(repeat.confirm)
+        assertTrue(gate.handle(VolumeKeyGate.Action.UP, 0, true, false).consume)
+        assertTrue(gate.handle(VolumeKeyGate.Action.DOWN, 0, true, false).confirm)
+    }
 }

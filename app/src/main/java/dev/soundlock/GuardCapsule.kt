@@ -40,7 +40,7 @@ class GuardCapsule(
         val title = TextView(context).apply { text = "解锁外放？"; textSize = 18f; setTextColor(Color.WHITE); setPadding(dp(8), dp(6), dp(8), dp(2)) }
         root.addView(title)
         val explanation = TextView(context).apply {
-            text = "恢复最低一格音量"; textSize = 14f; setTextColor(Color.rgb(198, 211, 212)); setPadding(dp(8), 0, dp(8), dp(8))
+            text = "恢复低音量"; textSize = 14f; setTextColor(Color.rgb(198, 211, 212)); setPadding(dp(8), 0, dp(8), dp(8))
         }
         root.addView(explanation)
         val actions = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END }

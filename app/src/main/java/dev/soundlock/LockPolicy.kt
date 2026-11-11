@@ -28,10 +28,12 @@ class LockPolicy(private val idleTimeoutMs: Long = 15 * 60_000L) {
         if (route != next) lock()
         route = next
     }
-    fun updatePlayback(active: Boolean, now: Long) {
+    fun updatePlayback(active: Boolean, now: Long): Boolean {
+        val expired = tick(now)
         if (active) idleSince = null
         else if (unlocked && (playing || idleSince == null)) idleSince = now
         playing = active
+        return expired
     }
     fun tick(now: Long): Boolean {
         val due = deadline ?: return false

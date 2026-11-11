@@ -179,7 +179,7 @@ private fun SoundLockScreen(settingsRevision: Int) {
                             PageRow("GitHub 项目") { activity.openProject() }
                         }
                         "help" -> {
-                            HelpSection("锁定与解锁", "锁定后，按音量加键会弹出顶部确认提示，点击「确认解锁」后才能外放。也可以在首页解锁。解锁恢复最低一格音量，不恢复之前的音量。取消或超时后提示会隐藏，平时没有悬浮球。")
+                            HelpSection("锁定与解锁", "锁定后，按音量加键会弹出顶部确认提示，点击「确认解锁」后才能外放。也可以在首页解锁。解锁恢复低音量，不恢复之前的音量。取消或超时后提示会隐藏，平时没有悬浮球。")
                             HelpSection("自动上锁", "连续 15 分钟没有媒体播放后自动上锁；播放期间不计时。媒体音量调回零、耳机断开或保护服务重连时，也会重新上锁。可在系统快捷设置中添加「声锁」，随时上锁。")
                             HelpSection("耳机与通话", "外接设备正常使用，切回手机扬声器后重新上锁。声锁只保护媒体外放，不调整通话、铃声和闹钟音量。")
                             HelpSection("权限与后台", "无障碍服务用于接收音量键和显示确认提示，不读取屏幕内容。状态通知提供上锁入口。精确定时用于息屏后的自动上锁；未允许时可能延迟。ColorOS 中还需留意应用的后台活动和自启动设置。")
@@ -211,7 +211,7 @@ private fun SoundLockScreen(settingsRevision: Int) {
     )
     if (showUnlock) AlertDialog(
         onDismissRequest = { showUnlock = false }, title = { Text("解锁外放？") },
-        text = { Text(unlockError ?: "恢复最低一格音量，停止播放 15 分钟后自动上锁。") },
+        text = { Text(unlockError ?: "恢复低音量，停止播放 15 分钟后自动上锁。") },
         confirmButton = { TextButton(onClick = {
             val service = GuardState.service
             if (service?.confirmUnlock() == true) { showUnlock = false; service.showUnlockFeedback() }

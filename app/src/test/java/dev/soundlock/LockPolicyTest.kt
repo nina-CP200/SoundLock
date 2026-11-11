@@ -10,6 +10,7 @@ class LockPolicyTest {
         assertTrue(p.shouldMute)
         assertFalse(p.unlock(0))
     }
+
     @Test fun fifteenMinutesStartsAfterPlaybackStops() {
         val p = speaker()
         p.updatePlayback(true, 100)
@@ -22,6 +23,7 @@ class LockPolicyTest {
         assertTrue(p.tick(4_500_000))
         assertTrue(p.shouldMute)
     }
+
     @Test fun resumingPlaybackClearsOldDeadline() {
         val p = speaker()
         p.unlock(100)
@@ -31,6 +33,7 @@ class LockPolicyTest {
         p.updatePlayback(false, 1_000_001)
         assertEquals(1_900_001L, p.deadline)
     }
+
     @Test fun repeatedIdleChecksDoNotRestartTimer() {
         val p = speaker()
         p.unlock(100)
@@ -38,6 +41,7 @@ class LockPolicyTest {
         p.updatePlayback(false, 1000)
         assertEquals(900_100L, p.deadline)
     }
+
     @Test fun headphonesBypassLockButDisconnectRevokesLease() {
         val p = speaker()
         p.unlock(100)
@@ -48,6 +52,7 @@ class LockPolicyTest {
         assertTrue(p.shouldMute)
         assertTrue(p.shouldConfirm)
     }
+
     @Test fun unknownRouteCannotKeepAuthorization() {
         val p = speaker()
         p.unlock(100)
@@ -57,6 +62,7 @@ class LockPolicyTest {
         p.updateRoute(LockPolicy.Route.SPEAKER)
         assertFalse(p.unlocked)
     }
+
     @Test fun returnToZeroVolumeRevokesAuthorization() {
         val p = speaker()
         p.unlock(100)
@@ -65,6 +71,7 @@ class LockPolicyTest {
         assertTrue(p.shouldConfirm)
         assertNull(p.deadline)
     }
+
     @Test fun delayedSystemVolumeUpdateDoesNotRevokeConfirmation() {
         val p = speaker()
         assertTrue(p.unlock(100))
@@ -76,6 +83,7 @@ class LockPolicyTest {
         p.observeVolume(0)
         assertTrue(p.shouldConfirm)
     }
+
     @Test fun confirmedButStillSilentLeaseExpires() {
         val p = speaker()
         p.unlock(100)
@@ -84,6 +92,7 @@ class LockPolicyTest {
         assertTrue(p.tick(900_100))
         assertTrue(p.shouldMute)
     }
+
     @Test fun pauseDoesNotRestoreOldLease() {
         val p = speaker()
         p.unlock(100)
@@ -93,6 +102,7 @@ class LockPolicyTest {
         p.setArmed(true)
         assertTrue(p.shouldMute)
     }
+
     @Test fun noisySignalLocksEvenWhileExternal() {
         val p = speaker()
         p.unlock(100)
@@ -101,5 +111,23 @@ class LockPolicyTest {
         p.updateRoute(LockPolicy.Route.SPEAKER)
         assertFalse(p.unlocked)
         assertTrue(p.shouldMute)
+    }
+
+    @Test fun playbackAtDeadlineCannotRenewAnExpiredUnlock() {
+        val p = LockPolicy(1_000).apply { updateRoute(LockPolicy.Route.SPEAKER) }
+        p.unlock(0)
+        assertTrue(p.updatePlayback(true, 1_000))
+        assertFalse(p.unlocked)
+        assertTrue(p.shouldMute)
+        assertTrue(p.playing)
+    }
+
+    @Test fun playbackAfterDelayedExpiryCannotRenewAnExpiredUnlock() {
+        val p = LockPolicy(1_000).apply { updateRoute(LockPolicy.Route.SPEAKER) }
+        p.unlock(0)
+        p.updatePlayback(true, 60_000)
+        assertFalse(p.unlocked)
+        assertTrue(p.shouldMute)
+        assertNull(p.deadline)
     }
 }
