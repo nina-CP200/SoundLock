@@ -145,6 +145,7 @@ private fun SoundLockScreen(settingsRevision: Int) {
         state.problem != null -> R.string.status_problem_title
         state.route == LockPolicy.Route.UNKNOWN -> R.string.status_checking_title
         state.route == LockPolicy.Route.EXTERNAL -> R.string.status_external_title
+        state.allowed -> R.string.status_allowed_title
         state.unlocked -> R.string.status_unlocked_title
         else -> R.string.status_locked_title
     })
@@ -154,6 +155,7 @@ private fun SoundLockScreen(settingsRevision: Int) {
         state.problem != null -> state.problem
         state.route == LockPolicy.Route.UNKNOWN -> stringResource(R.string.status_checking_detail)
         state.route == LockPolicy.Route.EXTERNAL -> stringResource(R.string.status_external_detail)
+        state.allowed -> stringResource(R.string.status_allowed_detail)
         state.unlocked && state.deadline != null -> {
             val seconds = ((state.deadline - now).coerceAtLeast(0) + 999) / 1000
             stringResource(R.string.status_countdown,
@@ -181,7 +183,7 @@ private fun SoundLockScreen(settingsRevision: Int) {
                     when (page) {
                         "home" -> {
                             Spacer(Modifier.height(16.dp))
-                            LockSymbol(state.connected && state.armed && state.unlocked, Modifier.size(64.dp))
+                            LockSymbol(state.connected && state.armed && (state.unlocked || state.allowed), Modifier.size(64.dp))
                             Spacer(Modifier.height(24.dp))
                             Text(headline, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.height(12.dp))
@@ -191,7 +193,7 @@ private fun SoundLockScreen(settingsRevision: Int) {
                             when {
                                 !state.connected -> Button(onClick = { showDisclosure = true }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.action_enable_protection)) }
                                 !state.armed -> Button(onClick = { GuardState.setArmed(activity, true) }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.action_enable_protection)) }
-                                state.unlocked -> Button(onClick = { GuardState.service?.lockNow() }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.action_lock_now)) }
+                                state.unlocked || state.allowed -> Button(onClick = { GuardState.service?.lockNow() }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.action_lock_now)) }
                                 state.route == LockPolicy.Route.SPEAKER -> Button(onClick = { unlockError = null; showUnlock = true }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.action_unlock_speaker)) }
                                 state.route == LockPolicy.Route.UNKNOWN || state.problem != null -> OutlinedButton(onClick = { GuardState.service?.checkTimer() }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.action_check_again)) }
                             }
@@ -210,7 +212,7 @@ private fun SoundLockScreen(settingsRevision: Int) {
                             HorizontalDivider(color = colors.outlineVariant)
                             SettingRow(stringResource(R.string.setting_idle_timeout), stringResource(R.string.minutes_value, state.idleMinutes), stringResource(R.string.action_choose)) { showIdleTimeout = true }
                             HorizontalDivider(color = colors.outlineVariant)
-                            SettingRow(stringResource(R.string.setting_app_rules), stringResource(R.string.app_rules_count, allowedPackages.size), stringResource(R.string.action_choose)) { page = "apps" }
+                            SettingRow(stringResource(R.string.setting_app_rules), pluralStringResource(R.plurals.app_rules_count, allowedPackages.size, allowedPackages.size), stringResource(R.string.action_choose)) { page = "apps" }
                             HorizontalDivider(color = colors.outlineVariant)
                             SettingRow(stringResource(R.string.setting_language), languageLabel, stringResource(R.string.action_choose)) { showLanguage = true }
                             HorizontalDivider(color = colors.outlineVariant)

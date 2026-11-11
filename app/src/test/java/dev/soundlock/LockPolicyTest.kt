@@ -171,6 +171,23 @@ class LockPolicyTest {
         assertTrue(p.shouldConfirm)
         assertFalse(p.unlocked)
     }
+    @Test fun lockingClearsAllowedAppExemption() {
+        val p = speaker()
+        p.updatePlayback(true, 100, allowed = true)
+        p.lock()
+        assertFalse(p.allowed)
+        assertTrue(p.shouldMute)
+        assertTrue(p.shouldConfirm)
+    }
+
+    @Test fun unknownRouteClearsAllowedAppExemption() {
+        val p = speaker()
+        p.updatePlayback(true, 100, allowed = true)
+        p.updateRoute(LockPolicy.Route.UNKNOWN)
+        assertFalse(p.allowed)
+        assertTrue(p.shouldMute)
+    }
+
     @Test fun allowedDoesNotTouchAManualLease() {
         val p = speaker()
         assertTrue(p.unlock(0))

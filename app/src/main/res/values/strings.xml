@@ -4,7 +4,7 @@
     <string name="about_message" translatable="false">真的会有人翻到这里啊。\n\n感谢你信任我写的应用。如果你懂些代码，大概会发现，整个应用都是 vibe coding 出来的，是我边学边做的小作品。希望我有限的开发能力，能帮你减少一些意外外放的烦恼。\n\n写这个应用，源于一次意外。前一天晚上看赛车直播，我忘了把媒体音量关掉，结果第二天点开好友发来的抽象哈基米视频，就这么外放了出来，当场社死💦 希望有了这个应用，这样的意外能少一些。\n\n总之，欢迎使用声锁。项目已采用 MIT 许可证开源，你可以自由修改，也欢迎分享自己的版本。如果遇到 bug，请到 GitHub 项目页提交 issue，我会尽量及时排查和修复。如果你也想帮忙改进，欢迎提交 PR。\n\nNing Yu\n2026.10.19</string>
     <string name="app_name">SoundLock</string>
     <string name="accessibility_service_label">SoundLock · Volume Guard</string>
-    <string name="accessibility_description">SoundLock uses an accessibility service to receive volume-key events, block volume up while speaker audio is locked, and show the unlock confirmation. It does not read screen content, tap for you, or collect typed text. It only changes media volume, never calls, ringtones or alarms. You can pause protection in SoundLock, or turn the service off here.</string>
+    <string name="accessibility_description">SoundLock uses an accessibility service to receive volume-key events, block volume up while speaker audio is locked, and show the unlock confirmation. App rules use the foreground app package name and media playback state on this device only. It does not read screen content, tap for you, or collect typed text. It only changes media volume, never calls, ringtones or alarms. You can pause protection in SoundLock, or turn the service off here.</string>
 
     <!-- Pages and shared actions -->
     <string name="page_settings">Settings</string>
@@ -58,7 +58,10 @@
     <string name="setting_exact_not_allowed">Exact alarms not allowed</string>
     <string name="status_locked_detail">Press volume up and confirm to unlock.</string>
     <string name="setting_app_rules">App rules</string>
-    <string name="app_rules_count">%1$d allowed</string>
+    <plurals name="app_rules_count">
+        <item quantity="one">%1$d app allowed</item>
+        <item quantity="other">%1$d apps allowed</item>
+    </plurals>
     <string name="app_rules_hint">Allowed apps play through the speaker without confirming. SoundLock stops adjusting their volume; volume stays up to you.</string>
     <string name="app_rules_empty">No apps to list</string>
     <string name="setting_background">Background activity</string>
@@ -76,7 +79,7 @@
 
     <!-- Dialogs -->
     <string name="disclosure_title">Turn on the guard service</string>
-    <string name="disclosure_body">SoundLock needs the accessibility service to receive volume keys and show the unlock prompt. It does not read screen content or collect typed text.\n\nEnable “SoundLock · Volume Guard” in system settings. If the system reports restricted settings, allow them in App info first. You can pause protection or turn the service off at any time.</string>
+    <string name="disclosure_body">SoundLock needs the accessibility service to receive volume keys and show the unlock prompt. App rules use the foreground app package name and media playback state on this device only. It does not read screen content or collect typed text.\n\nEnable “SoundLock · Volume Guard” in system settings. If the system reports restricted settings, allow them in App info first. You can pause protection or turn the service off at any time.</string>
     <string name="unlock_dialog_title">Unlock speaker?</string>
     <string name="unlock_dialog_body">Restores a low media volume. Auto-locks %1$s after playback stops.</string>
     <string name="unlock_service_disconnected">The guard service is not connected. Turn it on again.</string>
@@ -91,7 +94,7 @@
     <string name="help_headphones_title">Headphones and calls</string>
     <string name="help_headphones_body">External devices work normally and lock again when you switch back to the phone speaker. SoundLock only protects speaker media audio; it never changes call, ringtone or alarm volume.</string>
     <string name="help_permissions_title">Permissions and background</string>
-    <string name="help_permissions_body">The accessibility service receives volume keys and shows the confirmation; it does not read screen content. The status notification carries the lock shortcut. Exact alarms keep the auto-lock timer on time with the screen off; without that permission it can be delayed. On ColorOS, also check background activity and autostart settings.</string>
+    <string name="help_permissions_body">The accessibility service receives volume keys, shows the confirmation and identifies the foreground app package name locally for app rules; it does not read screen content. The status notification carries the lock shortcut. Exact alarms keep the auto-lock timer on time with the screen off; without that permission it can be delayed. On ColorOS, also check background activity and autostart settings.</string>
     <string name="help_volume_title">Volume compatibility</string>
     <string name="help_volume_body">SoundLock picks the volume control itself. Some OPPO devices restrict background media-volume writes, so it mutes through the accessibility volume channel tied to media instead. If a separate screen-reader volume channel is enabled, it uses the standard media interface. On the compatibility channel the reported volume is an estimate: the floor is not proof of silence.</string>
     <string name="help_scope_title">Limits</string>

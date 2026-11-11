@@ -16,7 +16,7 @@ class LockPolicy(var idleTimeoutMs: Long = 15 * 60_000L) {
     val deadline get() = if (armed && unlocked && !playing) idleSince?.plus(idleTimeoutMs) else null
 
     fun setArmed(value: Boolean) { armed = value; lock() }
-    fun lock() { unlocked = false; idleSince = null; positiveVolumeObserved = false }
+    fun lock() { unlocked = false; allowed = false; idleSince = null; positiveVolumeObserved = false }
     fun unlock(now: Long): Boolean {
         if (!armed || route != Route.SPEAKER) return false
         unlocked = true

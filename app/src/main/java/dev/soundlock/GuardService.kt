@@ -173,7 +173,7 @@ class GuardService : AccessibilityService() {
             reconcileCapsule()
             scheduleTimer()
             publish()
-            announceAllowedApp(allowedPackage)
+            announceAllowedApp(allowedPackage.takeIf { policy.armed && policy.allowed })
         } catch (e: RuntimeException) {
             policy.updateRoute(LockPolicy.Route.UNKNOWN)
             policy.lock()
@@ -289,7 +289,7 @@ class GuardService : AccessibilityService() {
     private fun canInteract() = ready && getSystemService(PowerManager::class.java).isInteractive && !getSystemService(KeyguardManager::class.java).isKeyguardLocked
 
     private fun allowedPlayingPackage(configs: List<AudioPlaybackConfiguration>): String? {
-        if (allowedPackages.isEmpty()) return null
+        if (allowedPackages.isEmpty() || !canInteract() || policy.route != LockPolicy.Route.SPEAKER) return null
         if (configs.none { it.audioAttributes.usage in MEDIA_USAGES }) return null
         return foregroundPackage?.takeIf { it in allowedPackages }
     }
@@ -389,9 +389,13 @@ class GuardService : AccessibilityService() {
         }
         val minutesPhrase = resources.getQuantityString(R.plurals.minutes_phrase, state.idleMinutes, state.idleMinutes)
         val notification = Notification.Builder(this, "protection").setSmallIcon(R.drawable.ic_lock).setContentTitle(title)
-            .setContentText(if (state.unlocked) getString(R.string.notification_auto_lock_in, minutesPhrase) else getString(R.string.notification_unlock_hint)).setContentIntent(if (state.route == LockPolicy.Route.SPEAKER && !state.unlocked) confirm else open).setOngoing(true).setOnlyAlertOnce(true)
+            .setContentText(when {
+                state.allowed -> getString(R.string.status_allowed_detail)
+                state.unlocked -> getString(R.string.notification_auto_lock_in, minutesPhrase)
+                else -> getString(R.string.notification_unlock_hint)
+            }).setContentIntent(if (state.route == LockPolicy.Route.SPEAKER && !state.unlocked && !state.allowed) confirm else open).setOngoing(true).setOnlyAlertOnce(true)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
-        if (state.route == LockPolicy.Route.SPEAKER && !state.unlocked) notification.addAction(Notification.Action.Builder(null, getString(R.string.action_confirm_unlock), confirm).build())
+        if (state.route == LockPolicy.Route.SPEAKER && !state.unlocked && !state.allowed) notification.addAction(Notification.Action.Builder(null, getString(R.string.action_confirm_unlock), confirm).build())
         notification.addAction(Notification.Action.Builder(null, getString(R.string.action_lock_now), lock).build())
         nm.notify(2, notification.build())
     }

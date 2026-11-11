@@ -2,7 +2,7 @@
     <!-- 简体中文。作者寄语与主题不在此文件，沿用 values/ 中的原文。 -->
     <string name="app_name">声锁</string>
     <string name="accessibility_service_label">声锁 · 音量保护</string>
-    <string name="accessibility_description">声锁需要接收音量键，在手机媒体外放被锁定时拦截音量加键，并显示确认解锁胶囊。不会读取屏幕内容、代替你点击屏幕或收集输入文字。仅调整媒体音量，不调整通话、铃声和闹钟。可随时在声锁中暂停保护，或在此关闭服务。</string>
+    <string name="accessibility_description">声锁需要接收音量键，在手机媒体外放被锁定时拦截音量加键，并显示确认解锁胶囊。应用规则仅在本机使用前台应用包名和媒体播放状态。不会读取屏幕内容、代替你点击屏幕或收集输入文字。仅调整媒体音量，不调整通话、铃声和闹钟。可随时在声锁中暂停保护，或在此关闭服务。</string>
 
     <string name="page_settings">设置</string>
     <string name="page_about">关于</string>
@@ -56,7 +56,9 @@
     <string name="setting_background_detail">应用系统设置</string>
     <string name="setting_language">语言</string>
     <string name="setting_app_rules">应用规则</string>
-    <string name="app_rules_count">%1$d 个已允许</string>
+    <plurals name="app_rules_count">
+        <item quantity="other">%1$d 个已允许</item>
+    </plurals>
     <string name="app_rules_hint">已允许的应用可以直接外放，不再需要确认。声锁不再调整它们的音量，音量由你自己控制。</string>
     <string name="app_rules_empty">没有可显示的应用</string>
     <string name="language_system">跟随系统</string>
@@ -69,7 +71,7 @@
     <string name="toast_no_app_for_link">未找到可打开链接的应用</string>
 
     <string name="disclosure_title">开启保护服务</string>
-    <string name="disclosure_body">声锁需要无障碍服务来接收音量键并显示解锁提示，不读取屏幕内容或收集输入文字。\n\n请在系统设置中开启「声锁 · 音量保护」。若提示受限设置，请先在应用信息中允许。你可以随时暂停保护或关闭服务。</string>
+    <string name="disclosure_body">声锁需要无障碍服务来接收音量键并显示解锁提示；应用规则在本机使用前台应用包名和媒体播放状态，不读取屏幕内容或收集输入文字。\n\n请在系统设置中开启「声锁 · 音量保护」。若提示受限设置，请先在应用信息中允许。你可以随时暂停保护或关闭服务。</string>
     <string name="unlock_dialog_title">解锁外放？</string>
     <string name="unlock_dialog_body">恢复低音量，停止播放 %1$s 后自动上锁。</string>
     <string name="unlock_service_disconnected">保护服务尚未连接，请重新开启服务。</string>
@@ -83,7 +85,7 @@
     <string name="help_headphones_title">耳机与通话</string>
     <string name="help_headphones_body">外接设备正常使用，切回手机扬声器后重新上锁。声锁只保护媒体外放，不调整通话、铃声和闹钟音量。</string>
     <string name="help_permissions_title">权限与后台</string>
-    <string name="help_permissions_body">无障碍服务用于接收音量键和显示确认提示，不读取屏幕内容；状态通知提供上锁入口；精确定时让自动上锁在息屏后按时生效，未允许时可能延迟。ColorOS 中还须留意应用的后台活动与自启动设置。</string>
+    <string name="help_permissions_body">无障碍服务用于接收音量键、显示确认提示，并在本机识别前台应用包名用于应用规则，不读取屏幕内容；状态通知提供上锁入口；精确定时让自动上锁在息屏后按时生效，未允许时可能延迟。ColorOS 中还须留意应用的后台活动与自启动设置。</string>
     <string name="help_volume_title">音量适配</string>
     <string name="help_volume_body">声锁自动选择音量控制方式。部分 OPPO 设备限制后台媒体音量写入，会改用与媒体联动的无障碍音量通道归零；若已有独立的读屏音量通道，则使用标准媒体接口。兼容通道的音量读数只是估计，最低档不代表已确认静音。</string>
     <string name="help_scope_title">使用范围</string>
