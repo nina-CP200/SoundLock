@@ -37,15 +37,15 @@ class GuardCapsule(
     fun showConfirmation() {
         dismiss()
         val root = base()
-        val title = TextView(context).apply { text = "解锁外放？"; textSize = 18f; setTextColor(Color.WHITE); setPadding(dp(8), dp(6), dp(8), dp(2)) }
+        val title = TextView(context).apply { text = context.getString(R.string.unlock_dialog_title); textSize = 18f; setTextColor(Color.WHITE); setPadding(dp(8), dp(6), dp(8), dp(2)) }
         root.addView(title)
         val explanation = TextView(context).apply {
-            text = "恢复低音量"; textSize = 14f; setTextColor(Color.rgb(198, 211, 212)); setPadding(dp(8), 0, dp(8), dp(8))
+            text = context.getString(R.string.capsule_restore_one_notch); textSize = 14f; setTextColor(Color.rgb(198, 211, 212)); setPadding(dp(8), 0, dp(8), dp(8))
         }
         root.addView(explanation)
         val actions = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END }
-        actions.addView(button("保持静音", false) { dismiss() }, LinearLayout.LayoutParams(0, dp(52), 1f).apply { marginEnd = dp(8) })
-        actions.addView(button("确认解锁", true) {
+        actions.addView(button(context.getString(R.string.action_keep_muted), false) { dismiss() }, LinearLayout.LayoutParams(0, dp(52), 1f).apply { marginEnd = dp(8) })
+        actions.addView(button(context.getString(R.string.action_confirm_unlock), true) {
             if (unlock()) showMessage(successMessage(), true)
             else {
                 explanation.text = failureMessage()
@@ -101,7 +101,7 @@ class GuardCapsule(
             PixelFormat.TRANSLUCENT).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             y = dp(16)
-            title = "声锁确认"
+            title = context.getString(R.string.capsule_window_title)
         }
         try {
             wm.addView(root, params)

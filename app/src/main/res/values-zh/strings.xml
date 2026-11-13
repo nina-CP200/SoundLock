@@ -1,0 +1,129 @@
+<resources>
+    <!-- 简体中文。作者寄语与主题不在此文件，沿用 values/ 中的原文。 -->
+    <string name="app_name">声锁</string>
+    <string name="accessibility_service_label">声锁 · 音量保护</string>
+    <string name="accessibility_description">声锁需要接收音量键，在手机媒体外放被锁定时拦截音量加键，并显示确认解锁胶囊。应用规则仅在本机使用前台应用包名和媒体播放状态。不会读取屏幕内容、代替你点击屏幕或收集输入文字。仅调整媒体音量，不调整通话、铃声和闹钟。可随时在声锁中暂停保护，或在此关闭服务。</string>
+
+    <string name="page_settings">设置</string>
+    <string name="page_about">关于</string>
+    <string name="page_help">使用说明</string>
+    <string name="page_words">我要说的话</string>
+    <string name="action_back">返回</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_manage">管理</string>
+    <string name="action_settings">设置</string>
+    <string name="action_choose">选择</string>
+    <string name="action_lock_now">立即上锁</string>
+    <string name="action_confirm_unlock">确认解锁</string>
+    <string name="action_keep_muted">保持静音</string>
+    <string name="action_enable_protection">开启保护</string>
+    <string name="action_unlock_speaker">解锁外放</string>
+    <string name="action_check_again">重新检查</string>
+    <string name="action_open_system_settings">前往系统设置</string>
+    <string name="action_not_now">暂不开启</string>
+
+    <string name="status_disconnected_title">尚未开启</string>
+    <string name="status_disconnected_detail">开启服务，保护媒体外放。</string>
+    <string name="status_paused_title">保护已暂停</string>
+    <string name="status_paused_detail">开启保护后重新上锁。</string>
+    <string name="status_problem_title">保护异常</string>
+    <string name="status_checking_title">正在检查</string>
+    <string name="status_checking_detail">暂时保持媒体静音。</string>
+    <string name="status_external_title">外接设备使用中</string>
+    <string name="status_external_detail">切回手机后自动上锁。</string>
+    <string name="status_unlocked_title">外放已解锁</string>
+    <string name="status_countdown">%1$s 后自动上锁</string>
+    <string name="countdown_value">%1$02d:%2$02d</string>
+    <string name="status_unlocked_idle_detail">播放结束后开始自动上锁计时。</string>
+    <string name="status_locked_title">外放已锁定</string>
+    <string name="status_locked_detail">按音量加键，确认后解锁。</string>
+    <string name="status_allowed_title">允许外放</string>
+    <string name="status_allowed_detail">该应用在白名单中；停止播放后自动上锁。</string>
+    <string name="row_speaker_protection">外放保护</string>
+
+    <string name="setting_service">音量保护服务</string>
+    <string name="value_on">已开启</string>
+    <string name="value_off">未开启</string>
+    <string name="setting_idle_timeout">自动上锁时长</string>
+    <string name="minutes_value">%1$d 分钟</string>
+    <string name="setting_notifications">状态通知</string>
+    <string name="value_allowed">已允许</string>
+    <string name="value_not_allowed">未允许</string>
+    <string name="setting_exact_alarm">自动上锁计时</string>
+    <string name="setting_exact_allowed">精确定时已允许</string>
+    <string name="setting_exact_not_allowed">精确定时未允许</string>
+    <string name="setting_background">后台运行</string>
+    <string name="setting_background_detail">应用系统设置</string>
+    <string name="setting_language">语言</string>
+    <string name="setting_app_rules">应用规则</string>
+    <plurals name="app_rules_count">
+        <item quantity="other">%1$d 个已允许</item>
+    </plurals>
+    <string name="app_rules_hint">已允许的应用可以直接外放，不再需要确认。声锁不再调整它们的音量，音量由你自己控制。</string>
+    <string name="app_rules_empty">没有可显示的应用</string>
+    <string name="language_system">跟随系统</string>
+    <string name="language_zh_hans">简体中文 🇸🇬</string>
+    <string name="language_zh_hant">繁體中文 🇲🇴</string>
+    <string name="language_en">English 🇳🇿</string>
+
+    <string name="about_version">版本 %1$s</string>
+    <string name="about_github">GitHub 项目</string>
+    <string name="toast_no_app_for_link">未找到可打开链接的应用</string>
+
+    <string name="disclosure_title">开启保护服务</string>
+    <string name="disclosure_body">声锁需要无障碍服务来接收音量键并显示解锁提示；应用规则在本机使用前台应用包名和媒体播放状态，不读取屏幕内容或收集输入文字。\n\n请在系统设置中开启「声锁 · 音量保护」。若提示受限设置，请先在应用信息中允许。你可以随时暂停保护或关闭服务。</string>
+    <string name="unlock_dialog_title">解锁外放？</string>
+    <string name="unlock_dialog_body">恢复低音量，停止播放 %1$s 后自动上锁。</string>
+    <string name="unlock_service_disconnected">保护服务尚未连接，请重新开启服务。</string>
+    <string name="idle_timeout_title">自动上锁时长</string>
+    <string name="language_dialog_title">语言</string>
+
+    <string name="help_lock_title">锁定与解锁</string>
+    <string name="help_lock_body">锁定后，按音量加键会弹出顶部确认提示，点击「确认解锁」后才能外放；也可以在首页解锁。解锁只恢复低音量，不恢复之前的音量。取消或超时后提示会隐藏，平时没有悬浮球。</string>
+    <string name="help_auto_lock_title">自动上锁</string>
+    <string name="help_auto_lock_body">连续 %1$s 没有媒体播放后自动上锁，播放期间不计时。媒体音量调回零、耳机断开、输出路径变化或服务重连也会重新上锁。时长可在「设置 → 自动上锁时长」中调整；把「声锁」磁贴加到系统快捷设置里，可以随时上锁。</string>
+    <string name="help_headphones_title">耳机与通话</string>
+    <string name="help_headphones_body">外接设备正常使用，切回手机扬声器后重新上锁。声锁只保护媒体外放，不调整通话、铃声和闹钟音量。</string>
+    <string name="help_permissions_title">权限与后台</string>
+    <string name="help_permissions_body">无障碍服务用于接收音量键、显示确认提示，并在本机识别前台应用包名用于应用规则，不读取屏幕内容；状态通知提供上锁入口；精确定时让自动上锁在息屏后按时生效，未允许时可能延迟。ColorOS 中还须留意应用的后台活动与自启动设置。</string>
+    <string name="help_volume_title">音量适配</string>
+    <string name="help_volume_body">声锁自动选择音量控制方式。部分 OPPO 设备限制后台媒体音量写入，会改用与媒体联动的无障碍音量通道归零；若已有独立的读屏音量通道，则使用标准媒体接口。兼容通道的音量读数只是估计，最低档不代表已确认静音。</string>
+    <string name="help_scope_title">使用范围</string>
+    <string name="help_scope_body">普通应用无法保证绝对零漏音。系统或其他应用调高音量后，声锁会尽快归零；服务被停止时无法继续保护。顶部提示由声锁自己绘制，尚未接入 OPPO 原生流体云。</string>
+    <string name="help_privacy_title">隐私</string>
+    <string name="help_privacy_body">本机处理：不申请网络或麦克风权限，不录音，不收集屏幕内容。</string>
+    <string name="help_current_state">当前状态</string>
+    <string name="help_output_device">输出设备</string>
+    <string name="help_output_speaker">手机扬声器</string>
+    <string name="help_output_external">外接设备</string>
+    <string name="help_output_unknown">暂未确认</string>
+    <string name="help_media_volume">媒体音量</string>
+    <string name="volume_value">%1$d / %2$d</string>
+    <string name="volume_value_estimated">约 %1$d / %2$d</string>
+    <string name="help_control_mode">控制方式</string>
+    <string name="volume_mode_standard">标准媒体音量</string>
+    <string name="volume_mode_accessibility">无障碍音量兼容</string>
+
+    <string name="guard_problem_read_failed">音频状态读取失败，请重新开启保护</string>
+    <string name="guard_problem_mute_pending">正在将媒体音量归零；尚未确认静音</string>
+    <string name="guard_problem_mute_denied">系统拒绝调整媒体音量，保护未完全生效</string>
+    <string name="capsule_restore_one_notch">恢复低音量</string>
+    <string name="capsule_app_allowed">%1$s 已放行，音量由你控制</string>
+    <string name="capsule_window_title">声锁确认</string>
+    <string name="unlock_ok_silent">已解锁，可调高音量</string>
+    <string name="unlock_failed_screen_locked">请先解锁手机屏幕，再按音量加键重试</string>
+    <string name="unlock_failed_paused">保护已暂停，音量键可直接调节</string>
+    <string name="unlock_failed_route_changed">输出设备已变化，请按音量加键重试</string>
+    <string name="unlock_failed_denied">系统拒绝调整媒体音量，保持锁定；可在此重试</string>
+    <string name="unlock_failed_default">未能解锁，请重试</string>
+    <string name="notification_channel_name">保护状态</string>
+    <string name="notification_unlock_hint">点击后确认解锁</string>
+    <string name="notification_auto_lock_in">停止播放 %1$s 后自动上锁</string>
+    <plurals name="minutes_phrase">
+        <item quantity="other">%1$d 分钟</item>
+    </plurals>
+    <string name="tile_off">尚未启用</string>
+    <string name="tile_unlocked">允许外放 · 点击上锁</string>
+    <string name="tile_locked">已上锁 · 点击查看</string>
+    <string name="tile_description">声锁，%1$s</string>
+</resources>

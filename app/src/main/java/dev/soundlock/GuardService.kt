@@ -6,6 +6,7 @@ import android.Manifest
 import android.accessibilityservice.AccessibilityService
 import android.app.*
 import android.content.*
+import android.content.res.Configuration
 import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.media.*
@@ -17,6 +18,10 @@ import android.view.accessibility.AccessibilityEvent
 
 class GuardService : AccessibilityService() {
     private val policy = LockPolicy()
+    private var allowedPackages: Set<String> = emptySet()
+    private var foregroundPackage: String? = null
+    private var announcedAllowed: String? = null
+    private var whitelistOverride = false
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var audio: AudioManager
     private lateinit var alarm: AlarmManager
@@ -28,8 +33,8 @@ class GuardService : AccessibilityService() {
     private var problem: String? = null
     private val muteProblem get() = when (muteRefresh.status) {
         MuteRefresh.Status.CLEAR -> null
-        MuteRefresh.Status.PENDING -> "正在将媒体音量归零；尚未确认静音"
-        MuteRefresh.Status.REJECTED -> "系统拒绝调整媒体音量，保护未完全生效"
+        MuteRefresh.Status.PENDING -> getString(R.string.guard_problem_mute_pending)
+        MuteRefresh.Status.REJECTED -> getString(R.string.guard_problem_mute_denied)
     }
     private var scheduledDeadline: Long? = null
     private val keyGate = VolumeKeyGate()
@@ -61,7 +66,7 @@ class GuardService : AccessibilityService() {
     private var lockFeedbackCount = 0L
     private var lastUnlockResult = "none"
     private var lastUnlockError: String? = null
-    val unlockFailureMessage get() = lastUnlockError ?: "未能解锁，请重试"
+    val unlockFailureMessage get() = lastUnlockError ?: getString(R.string.unlock_failed_default)
     private val alarmIntent by lazy {
         PendingIntent.getBroadcast(this, 1, Intent(this, LockReceiver::class.java).setAction(ACTION_TIMER), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
@@ -108,6 +113,8 @@ class GuardService : AccessibilityService() {
         alarm = getSystemService(AlarmManager::class.java)
         volumeControl = MediaVolumeControl(this, audio).apply { refreshMode() }
         capsule = GuardCapsule(this, ::confirmUnlock, { unlockSuccessMessage }, { unlockFailureMessage })
+        policy.idleTimeoutMs = GuardState.idleMinutes(this) * 60_000L
+        allowedPackages = GuardState.allowedPackages(this)
         policy.setArmed(GuardState.armed(this))
         GuardState.service = this
         ready = true
@@ -150,12 +157,11 @@ class GuardService : AccessibilityService() {
             policy.updateRoute(route())
             if (previousRoute != policy.route) capsule.dismiss()
             val configs = audio.activePlaybackConfigurations
-            interruptingAudio = configs.any { it.audioAttributes.usage in setOf(
-                AudioAttributes.USAGE_ALARM, AudioAttributes.USAGE_NOTIFICATION_RINGTONE,
-                AudioAttributes.USAGE_VOICE_COMMUNICATION, AudioAttributes.USAGE_VOICE_COMMUNICATION_SIGNALLING) }
-            val active = configs.any { it.audioAttributes.usage in setOf(
-                AudioAttributes.USAGE_MEDIA, AudioAttributes.USAGE_GAME, AudioAttributes.USAGE_UNKNOWN) } || audio.isMusicActive
-            val expired = policy.updatePlayback(active, now)
+            interruptingAudio = configs.any { it.audioAttributes.usage in INTERRUPTING_USAGES }
+            val allowedPackage = allowedPlayingPackage(configs)
+            if (allowedPackage == null) whitelistOverride = false
+            val active = configs.any { it.audioAttributes.usage in MEDIA_USAGES } || audio.isMusicActive
+            val expired = policy.updatePlayback(active, now, allowedPackage != null && !whitelistOverride)
             volumeControl.refreshMode()
             val volume = volumeControl.read().volume
             policy.observeVolume(volume)
@@ -167,11 +173,12 @@ class GuardService : AccessibilityService() {
             reconcileCapsule()
             scheduleTimer()
             publish()
+            announceAllowedApp(allowedPackage.takeIf { policy.armed && policy.allowed })
         } catch (e: RuntimeException) {
             policy.updateRoute(LockPolicy.Route.UNKNOWN)
             policy.lock()
             if (policy.armed) muteMedia()
-            problem = "音频状态读取失败，请重新开启保护"
+            problem = getString(R.string.guard_problem_read_failed)
             reconcileCapsule()
             publish()
         }
@@ -201,10 +208,19 @@ class GuardService : AccessibilityService() {
         capsule.dismiss()
         inspect()
     }
+    fun setIdleTimeout(minutes: Int) {
+        policy.idleTimeoutMs = minutes.coerceIn(1, 180) * 60_000L
+        inspect()
+    }
+    fun refreshAllowedPackages() {
+        allowedPackages = GuardState.allowedPackages(this)
+        inspect()
+    }
     fun lockNow() {
         if (!ready) return
         val wasUnlocked = policy.unlocked
         forceMute = true
+        whitelistOverride = true
         policy.lock()
         capsule.dismiss()
         inspect()
@@ -214,7 +230,7 @@ class GuardService : AccessibilityService() {
     private fun showLockFeedback() {
         if (problem == null && canInteract() && audio.mode == AudioManager.MODE_NORMAL && !interruptingAudio) {
             lockFeedbackCount++
-            capsule.showMessage("外放已锁定", false)
+            capsule.showMessage(getString(R.string.status_locked_title), false)
         }
     }
     fun checkTimer() { if (ready) inspect() }
@@ -236,10 +252,11 @@ class GuardService : AccessibilityService() {
     }
     fun confirmUnlock(): Boolean {
         inspect()
+        whitelistOverride = false
         lastUnlockError = when {
-            !canInteract() -> "请先解锁手机屏幕，再按音量加键重试"
-            !policy.armed -> "保护已暂停，音量键可直接调节"
-            policy.route != LockPolicy.Route.SPEAKER -> "输出设备已变化，请按音量加键重试"
+            !canInteract() -> getString(R.string.unlock_failed_screen_locked)
+            !policy.armed -> getString(R.string.unlock_failed_paused)
+            policy.route != LockPolicy.Route.SPEAKER -> getString(R.string.unlock_failed_route_changed)
             else -> null
         }
         if (lastUnlockError != null || !policy.unlock(SystemClock.elapsedRealtime())) {
@@ -260,16 +277,32 @@ class GuardService : AccessibilityService() {
         } catch (e: RuntimeException) {
             policy.lock()
             muteMedia()
-            lastUnlockError = "系统拒绝调整媒体音量，保持锁定；可在此重试"
+            lastUnlockError = getString(R.string.unlock_failed_denied)
             lastUnlockResult = "exception: " + e.javaClass.simpleName + ": " + e.message
             problem = lastUnlockError
             publish()
             return false
         }
     }
-    val unlockSuccessMessage get() = if (volumeControl.read().volume > 0) "外放已解锁" else "已解锁，可调高音量"
+    val unlockSuccessMessage get() = if (volumeControl.read().volume > 0) getString(R.string.status_unlocked_title) else getString(R.string.unlock_ok_silent)
     fun showUnlockFeedback() { if (canInteract()) capsule.showMessage(unlockSuccessMessage, true) }
     private fun canInteract() = ready && getSystemService(PowerManager::class.java).isInteractive && !getSystemService(KeyguardManager::class.java).isKeyguardLocked
+
+    private fun allowedPlayingPackage(configs: List<AudioPlaybackConfiguration>): String? {
+        if (allowedPackages.isEmpty() || !canInteract() || policy.route != LockPolicy.Route.SPEAKER) return null
+        if (configs.none { it.audioAttributes.usage in MEDIA_USAGES }) return null
+        return foregroundPackage?.takeIf { it in allowedPackages }
+    }
+    private fun appLabel(packageName: String): String = runCatching {
+        packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString()
+    }.getOrDefault(packageName)
+    private fun announceAllowedApp(packageName: String?) {
+        if (packageName == announcedAllowed) return
+        announcedAllowed = packageName
+        if (packageName == null) return
+        if (canInteract() && audio.mode == AudioManager.MODE_NORMAL && !interruptingAudio)
+            capsule.showMessage(getString(R.string.capsule_app_allowed, appLabel(packageName)), true)
+    }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (!ready || event.keyCode != KeyEvent.KEYCODE_VOLUME_UP) return false
@@ -321,7 +354,8 @@ class GuardService : AccessibilityService() {
         val volumeSample = runCatching { volumeControl.read() }.getOrNull()
         val next = GuardSnapshot(true, policy.armed, policy.unlocked, policy.route, policy.playing, policy.deadline,
             volumeSample?.volume ?: 0,
-            volumeSample?.maximum ?: 15, problem, volumeControl.mode, volumeSample?.estimated ?: false)
+            volumeSample?.maximum ?: 15, problem, volumeControl.mode, volumeSample?.estimated ?: false,
+            (policy.idleTimeoutMs / 60_000L).toInt(), policy.allowed)
         val old = GuardState.current
         GuardState.current = next
         // Edge-triggered: routine polling must never renew this transient message.
@@ -339,30 +373,58 @@ class GuardService : AccessibilityService() {
     private fun updateNotification(state: GuardSnapshot) {
         val nm = getSystemService(NotificationManager::class.java)
         if (!state.armed) { nm.cancel(2); return }
-        nm.createNotificationChannel(NotificationChannel("protection", "保护状态", NotificationManager.IMPORTANCE_LOW).apply {
+        nm.createNotificationChannel(NotificationChannel("protection", getString(R.string.notification_channel_name), NotificationManager.IMPORTANCE_LOW).apply {
             setSound(null, null); enableVibration(false); setShowBadge(false)
         })
         if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val lock = PendingIntent.getBroadcast(this, 2, Intent(this, LockReceiver::class.java).setAction(ACTION_LOCK), PendingIntent.FLAG_IMMUTABLE)
         val confirm = PendingIntent.getBroadcast(this, 4, Intent(this, LockReceiver::class.java).setAction(ACTION_CONFIRM), PendingIntent.FLAG_IMMUTABLE)
-        val title = when { state.problem != null -> "保护需要检查"; state.route == LockPolicy.Route.EXTERNAL -> "外接设备使用中"; state.unlocked -> "外放已解锁"; else -> "外放已锁定" }
+        val title = when {
+            state.problem != null -> getString(R.string.status_problem_title)
+            state.route == LockPolicy.Route.EXTERNAL -> getString(R.string.status_external_title)
+            state.allowed -> getString(R.string.status_allowed_title)
+            state.unlocked -> getString(R.string.status_unlocked_title)
+            else -> getString(R.string.status_locked_title)
+        }
+        val minutesPhrase = resources.getQuantityString(R.plurals.minutes_phrase, state.idleMinutes, state.idleMinutes)
         val notification = Notification.Builder(this, "protection").setSmallIcon(R.drawable.ic_lock).setContentTitle(title)
-            .setContentText(if (state.unlocked) "停止播放 15 分钟后自动上锁" else "点击后确认解锁").setContentIntent(if (state.route == LockPolicy.Route.SPEAKER && !state.unlocked) confirm else open).setOngoing(true).setOnlyAlertOnce(true)
+            .setContentText(when {
+                state.allowed -> getString(R.string.status_allowed_detail)
+                state.unlocked -> getString(R.string.notification_auto_lock_in, minutesPhrase)
+                else -> getString(R.string.notification_unlock_hint)
+            }).setContentIntent(if (state.route == LockPolicy.Route.SPEAKER && !state.unlocked && !state.allowed) confirm else open).setOngoing(true).setOnlyAlertOnce(true)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
-        if (state.route == LockPolicy.Route.SPEAKER && !state.unlocked) notification.addAction(Notification.Action.Builder(null, "确认解锁", confirm).build())
-        notification.addAction(Notification.Action.Builder(null, "立即上锁", lock).build())
+        if (state.route == LockPolicy.Route.SPEAKER && !state.unlocked && !state.allowed) notification.addAction(Notification.Action.Builder(null, getString(R.string.action_confirm_unlock), confirm).build())
+        notification.addAction(Notification.Action.Builder(null, getString(R.string.action_lock_now), lock).build())
         nm.notify(2, notification.build())
     }
     override fun dump(fd: FileDescriptor, writer: PrintWriter, args: Array<out String>?) {
         writer.println("SoundLock version=${BuildConfig.VERSION_NAME} ready=$ready armed=${policy.armed} unlocked=${policy.unlocked}")
         writer.println("route=${policy.route} playing=${policy.playing} volumeKeys=$volumeKeyEvents problem=$problem")
+        writer.println("allowed=${policy.allowed} allowedPackages=$allowedPackages foreground=$foregroundPackage override=$whitelistOverride")
         writer.println("keyConsumed=$consumedKeyEvents keyDecision=$lastKeyDecision callbackUs=$lastKeyCallbackUs maxCallbackUs=$maxKeyCallbackUs deliveryDelayMs=$lastKeyDeliveryDelayMs")
         writer.println("lastUnlock=$lastUnlockResult volume=${GuardState.current.volume} lockFeedbacks=$lockFeedbackCount")
         if (ready) writer.println("volumeMode=${volumeControl.mode} sample=${runCatching { volumeControl.read() }.getOrNull()} command=${volumeControl.lastCommand}")
         if (ready) writer.println("capsule=${capsule.status} canInteract=${canInteract()} audioMode=${audio.mode} interruptingAudio=$interruptingAudio")
     }
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        val changed = event.packageName?.toString() ?: return
+        // System UI windows (shade, keyguard, volume panel) are not app switches.
+        if (changed == packageName || changed == "com.android.systemui") return
+        if (changed == foregroundPackage) return
+        foregroundPackage = changed
+        handler.post { if (ready) inspect() }
+    }
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // A locale change does not alter the snapshot, so the edge-triggered publish would keep
+        // the old-language notification. Redraw it directly and drop any stale overlay text.
+        if (!ready) return
+        capsule.dismiss()
+        updateNotification(GuardState.current)
+    }
     override fun onInterrupt() { lockNow() }
     override fun onUnbind(intent: Intent?): Boolean { cleanup(); return super.onUnbind(intent) }
     override fun onDestroy() { cleanup(); super.onDestroy() }
@@ -381,9 +443,14 @@ class GuardService : AccessibilityService() {
         unregisterReceiver(receiver)
         getSystemService(NotificationManager::class.java).cancel(2)
         GuardState.service = null
-        GuardState.current = GuardSnapshot(armed = GuardState.armed(this))
+        GuardState.current = GuardSnapshot(armed = GuardState.armed(this), idleMinutes = GuardState.idleMinutes(this))
     }
     companion object {
+        private val MEDIA_USAGES = setOf(
+            AudioAttributes.USAGE_MEDIA, AudioAttributes.USAGE_GAME, AudioAttributes.USAGE_UNKNOWN)
+        private val INTERRUPTING_USAGES = setOf(
+            AudioAttributes.USAGE_ALARM, AudioAttributes.USAGE_NOTIFICATION_RINGTONE,
+            AudioAttributes.USAGE_VOICE_COMMUNICATION, AudioAttributes.USAGE_VOICE_COMMUNICATION_SIGNALLING)
         const val ACTION_LOCK = "dev.soundlock.LOCK"
         const val ACTION_CONFIRM = "dev.soundlock.CONFIRM"
         const val ACTION_TIMER = "dev.soundlock.TIMER"

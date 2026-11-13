@@ -130,4 +130,70 @@ class LockPolicyTest {
         assertTrue(p.shouldMute)
         assertNull(p.deadline)
     }
+
+    @Test fun shorteningTheTimeoutRelocksAtTheNewDeadline() {
+        val p = speaker()
+        assertTrue(p.unlock(0))
+        assertEquals(900_000L, p.deadline)
+        p.idleTimeoutMs = 5 * 60_000L
+        assertEquals(300_000L, p.deadline)
+        assertFalse(p.tick(299_999))
+        assertTrue(p.tick(300_000))
+        assertTrue(p.shouldMute)
+    }
+    @Test fun lengtheningTheTimeoutExtendsTheCurrentLease() {
+        val p = speaker()
+        assertTrue(p.unlock(0))
+        p.idleTimeoutMs = 60 * 60_000L
+        assertEquals(3_600_000L, p.deadline)
+        assertFalse(p.tick(900_000))
+        assertTrue(p.unlocked)
+    }
+    @Test fun changingTheTimeoutCannotUnlockOnItsOwn() {
+        val p = speaker()
+        p.idleTimeoutMs = 60 * 60_000L
+        assertTrue(p.shouldMute)
+        assertNull(p.deadline)
+    }
+
+    @Test fun allowedAppSuppressesMuteAndConfirmation() {
+        val p = speaker()
+        p.updatePlayback(true, 100, allowed = true)
+        assertFalse(p.shouldMute)
+        assertFalse(p.shouldConfirm)
+        assertTrue(p.allowed)
+    }
+    @Test fun stoppingTheAllowedAppRequiresConfirmationAgain() {
+        val p = speaker()
+        p.updatePlayback(true, 100, allowed = true)
+        p.updatePlayback(false, 200)
+        assertTrue(p.shouldMute)
+        assertTrue(p.shouldConfirm)
+        assertFalse(p.unlocked)
+    }
+    @Test fun lockingClearsAllowedAppExemption() {
+        val p = speaker()
+        p.updatePlayback(true, 100, allowed = true)
+        p.lock()
+        assertFalse(p.allowed)
+        assertTrue(p.shouldMute)
+        assertTrue(p.shouldConfirm)
+    }
+
+    @Test fun unknownRouteClearsAllowedAppExemption() {
+        val p = speaker()
+        p.updatePlayback(true, 100, allowed = true)
+        p.updateRoute(LockPolicy.Route.UNKNOWN)
+        assertFalse(p.allowed)
+        assertTrue(p.shouldMute)
+    }
+
+    @Test fun allowedDoesNotTouchAManualLease() {
+        val p = speaker()
+        assertTrue(p.unlock(0))
+        p.updatePlayback(true, 100, allowed = true)
+        p.updatePlayback(false, 200)
+        assertTrue(p.unlocked)
+        assertFalse(p.shouldConfirm)
+    }
 }
